@@ -1,0 +1,5 @@
+# Ignore all .pth files in the checkpoints folders
+two_agent_swap/trained_models/
+lift/trained_models/
+lift_hardware/trained_models/
+three_agent_swap/trained_models/
