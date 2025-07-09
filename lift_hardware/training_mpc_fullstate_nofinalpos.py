@@ -177,10 +177,10 @@ def reactive_mpc_plan(ode_model, initial_states, final_states, obs, segment_leng
     return full_traj
 
 
-# for i in range(10):
-#     cond_idx = i
-#     planned_trajs = reactive_mpc_plan(action_cond_ode, [obs_init1[cond_idx], obs_init2[cond_idx]], [obs_final1[cond_idx], obs_final2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T, n_implement=10)
-#     planned_traj1 =  planned_trajs[0] * std + mean
-#     np.save("samples/P200E1_1000T_fullstate_nofinalpos/planned_traj1_%s_new.npy" % cond_idx, planned_traj1)
-#     planned_traj2 = planned_trajs[1] * std + mean
-#     np.save("samples/P200E1_1000T_fullstate_nofinalpos/planned_traj2_%s_new.npy" % cond_idx, planned_traj2)
+for i in range(10):
+    cond_idx = i
+    planned_trajs = reactive_mpc_plan(action_cond_ode, [obs_init1[cond_idx], obs_init2[cond_idx]], [obs_final1[cond_idx], obs_final2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T, n_implement=10)
+    planned_traj1 =  planned_trajs[0] * std + mean
+    np.save("samples/P200E1_1000T_fullstate_nofinalpos/planned_traj1_%s_new.npy" % cond_idx, planned_traj1)
+    planned_traj2 = planned_trajs[1] * std + mean
+    np.save("samples/P200E1_1000T_fullstate_nofinalpos/planned_traj2_%s_new.npy" % cond_idx, planned_traj2)
