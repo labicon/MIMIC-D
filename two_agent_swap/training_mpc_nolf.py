@@ -10,7 +10,7 @@ from utils.mpc_util import reactive_mpc_plan_nolf
 
 def create_mpc_dataset(expert_data, planning_horizon=25):
     n_traj, horizon, state_dim = expert_data.shape
-    n_subtraj = horizon  # we'll create one sub-trajectory starting at each time step
+    n_subtraj = horizon
 
     # Resulting array shape: (n_traj * n_subtraj, planning_horizon, state_dim)
     result = []
@@ -57,22 +57,13 @@ obstacle = (10, 0, 4.0)
 # Loading training trajectories
 expert_data_1 = np.load('data/expert_data1_100_traj.npy')
 expert_data_2 = np.load('data/expert_data2_100_traj.npy')
-breakpoint()
-
 orig1 = expert_data_1
 orig2 = expert_data_2
-print(expert_data_1.shape)
-print(expert_data_2.shape)
-
 orig1 = np.array(orig1)
 orig2 = np.array(orig2)
-print(orig1.shape)
-print(orig2.shape)
 
 expert_data1 = create_mpc_dataset(expert_data_1, planning_horizon=H)
 expert_data2 = create_mpc_dataset(expert_data_2, planning_horizon=H)
-print(expert_data1.shape)
-print(expert_data2.shape)
 
 combined_data1 = np.concatenate((expert_data1, expert_data2), axis=0)
 combined_data2 = np.concatenate((orig1, orig2), axis=0)
@@ -94,7 +85,7 @@ class TwoUnicycle():
         self.action_size = action_size
         self.name = "TwoUnicycle"
 env = TwoUnicycle()
-# breakpoint()
+
 # Setting up training data
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]

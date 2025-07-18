@@ -131,7 +131,7 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-        action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf")
+        action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf_sitedata_fulltrain")
 
         return action_cond_ode
 
@@ -139,33 +139,43 @@ class PolicyPlayer:
     def obs_to_state(self, obs):
         """
         Read the two arms’ current 7D states (local pos, rotation-vector, gripper)
-        but *convert* world EEF pos into the robot’s own base frame.
+        using the correct end-effector SITE frame for rotation.
         """
-        # --- robot 0 ---
-        # 1) world→local for position
-        world_pos0 = obs["robot0_eef_pos"]                # (3,)
-        # subtract the base origin, then rotate back into base axes:
-        local_pos0 = self.robot0_base_ori_rotm.T @ (world_pos0 - self.robot0_base_pos)
-        # 2) rotation‐vector (you can leave this in world frame if your training used world rotvec,
-        #    or you can similarly re‐express it in local axes—just be consistent with training!)
-        quat0     = obs["robot0_eef_quat"]                # (4,) world quaternion
-        rotvec0   = R.from_quat(quat0).as_rotvec()         # (3,)
-        # 3) gripper joint position
-        grip0     = self.env.sim.data.qpos[self.qpos_index_0]
-        state0    = np.hstack([local_pos0, rotvec0, grip0])  # (7,)
 
-        # --- robot 1 ---
+        # --- Robot 0 ---
+        # 1) World->local for position
+        world_pos0 = obs["robot0_eef_pos"]
+        local_pos0 = self.robot0_base_ori_rotm.T @ (world_pos0 - self.robot0_base_pos)
+        
+        # 2) Get rotation vector from the SITE quaternion
+        quat0_site = obs["robot0_eef_quat_site"]
+        R_world_to_site0 = R.from_quat(quat0_site).as_matrix()
+        R_base_to_site0 = self.robot0_base_ori_rotm.T @ R_world_to_site0
+        rotvec0 = R.from_matrix(R_base_to_site0).as_rotvec()
+
+        # 3) Gripper joint position
+        grip0 = self.env.sim.data.qpos[self.qpos_index_0]
+        state0 = np.hstack([local_pos0, rotvec0, grip0])
+
+        # --- Robot 1 ---
+        # 1) World->local for position
         world_pos1 = obs["robot1_eef_pos"]
         local_pos1 = self.robot1_base_ori_rotm.T @ (world_pos1 - self.robot1_base_pos)
-        quat1      = obs["robot1_eef_quat"]
-        rotvec1    = R.from_quat(quat1).as_rotvec()
-        grip1      = self.env.sim.data.qpos[self.qpos_index_1]
-        state1     = np.hstack([local_pos1, rotvec1, grip1])
+
+        # 2) Get rotation vector from the SITE quaternion
+        quat1_site = obs["robot1_eef_quat_site"]
+        R_world_to_site1 = R.from_quat(quat1_site).as_matrix()
+        R_base_to_site1 = self.robot1_base_ori_rotm.T @ R_world_to_site1
+        rotvec1 = R.from_matrix(R_base_to_site1).as_rotvec()
+
+        # 3) Gripper joint position
+        grip1 = self.env.sim.data.qpos[self.qpos_index_1]
+        state1 = np.hstack([local_pos1, rotvec1, grip1])
 
         return state0, state1
     
     
-    def reactive_mpc_plan(self, ode_model, initial_states, obs, segment_length=25, total_steps=250, n_implement=5):
+    def reactive_mpc_plan(self, ode_model, initial_states, pot, segment_length=25, total_steps=250, n_implement=5):
         """
         Plans a full trajectory (total_steps long) by iteratively planning
         segment_length-steps using the diffusion model and replanning at every timestep.
@@ -188,38 +198,55 @@ class PolicyPlayer:
         for seg in range(total_steps // n_implement):
             segments = []
             base_states = current_states.copy()
-            for i in range(len(current_states)):
-                cond = [base_states[i]]
-                for j in range(len(current_states)):
-                    if j != i:
-                        cond.append(base_states[j])
-                cond.append(obs)
+
+            # 1) sample a full normalized‐action segment for each arm
+            for i in range(len(base_states)):
+                # build conditioning vector exactly as in training
+                cond = [base_states[i]] + [base_states[j] for j in range(len(base_states)) if j!=i] + [pot]
                 cond = np.hstack(cond)
                 cond_tensor = torch.tensor(cond, dtype=torch.float32, device=device).unsqueeze(0)
-                sampled = ode_model.sample(attr=cond_tensor, traj_len=segment_length, n_samples=1, w=1., model_index=i)
-                seg_i = sampled.cpu().detach().numpy()[0]  # shape: (segment_length, action_size)
 
-                # if seg == 0:
-                #     segments.append(seg_i[0:n_implement,:])
-                # else:
-                #     segments.append(seg_i[1:n_implement+1,:])
-                segments.append(seg_i[n_implement,:])  # last state of the segment
-                
+                sampled = ode_model.sample(
+                    attr=cond_tensor,
+                    traj_len=segment_length,
+                    n_samples=1,
+                    w=1.,
+                    model_index=i
+                )
+                seg_i = sampled[0].cpu().detach().numpy()  # (segment_length, 7)
+
+                # pick out the n_implement steps and the “next” state to re‐condition on
+                if seg == 0:
+                    step_block    = seg_i[0:n_implement, :]        # shape (n_implement,7)
+                    next_norm     = seg_i[n_implement-1, :]        # shape (7,)
+                else:
+                    step_block    = seg_i[1:n_implement+1, :]
+                    next_norm     = seg_i[n_implement, :]
+
+                segments.append(step_block)
+                current_states[i] = next_norm
+
+            # 2) execute those n_implement actions on the real robot
             for t in range(n_implement):
-                action = np.hstack([segments[i][t] * self.std + self.mean for i in range(2)])
+                action = np.hstack([
+                    segments[i][t] * self.std + self.mean
+                    for i in range(len(current_states))
+                ])
                 obs_env, reward, done, info = self.env.step(action)
                 if self.render:
                     self.env.render()
-                # breakpoint()
+
+                # 3) (optional) re‐condition on true state instead of predicted:
                 state1, state2 = self.obs_to_state(obs_env)
-                # state1 = obs_env[:7]
-                # state2 = obs_env[7:14]
-                current_states = [(state1 - self.mean)/self.std, (state2 - self.mean)/self.std]
+                current_states = [
+                    (state1 - self.mean)/self.std,
+                    (state2 - self.mean)/self.std,
+                ]
 
-            seg_array = np.stack(segments, axis=0)
-            full_traj.append(seg_array)
+            full_traj.append(np.stack([s for s in segments], axis=0))
 
-        full_traj = np.concatenate(full_traj, axis=1) 
+        full_traj = np.concatenate(full_traj, axis=1)
+
         print("Full trajectory shape: ", np.shape(full_traj))
         return np.array(full_traj)
 
@@ -231,7 +258,7 @@ class PolicyPlayer:
         obs = self.reset(seed)
 
         # Loading
-        expert_data = np.load("data/expert_actions_rotvec_20.npy")
+        expert_data = np.load("data/expert_actions_rotvec_site_20.npy")
         expert_data1 = expert_data[:, :, :7]
         expert_data2 = expert_data[:, :, 7:14]
         expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
@@ -252,19 +279,11 @@ class PolicyPlayer:
 
         model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, state_dim = 7, action_dim = 7)
 
-        planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T, n_implement=1)
+        planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T*2, n_implement=10)
         planned_traj1 =  planned_trajs[0] * self.std + self.mean
         # np.save("sampled_trajs/mpc_P34E5/mpc_traj1_%s.npy" % i, planned_traj1)
         planned_traj2 = planned_trajs[1] * self.std + self.mean
         # np.save("sampled_trajs/mpc_P34E5/mpc_traj2_%s.npy" % i, planned_traj2)
-
-        # Run the sampled trajectory in the environment
-        # for i in range(len(planned_traj1)):
-        #     action = np.hstack([planned_traj1[i], planned_traj2[i]])
-        #     obs, reward, done, info = self.env.step(action)
-
-        #     if self.render:
-        #         self.env.render()
 
     
         

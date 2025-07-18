@@ -83,12 +83,14 @@ print(expert_data3.shape)
 
 
 combined_data = np.concatenate((expert_data1, expert_data2, expert_data3), axis=0)
-# mean = np.mean(combined_data, axis=(0,1))
-# std = np.std(combined_data, axis=(0,1))
-# np.save("data/mean_400demos_06noise.npy", mean)
-# np.save("data/std_400demos_06noise.npy", std)
-mean = np.load("data/mean_400demos_06noise.npy")
-std = np.load("data/std_400demos_06noise.npy")
+try:
+    mean = np.load("data/mean_400demos_06noise.npy")
+    std = np.load("data/std_400demos_06noise.npy")
+except FileNotFoundError:
+    mean = np.mean(combined_data, axis=(0,1))
+    std = np.std(combined_data, axis=(0,1))
+    np.save("data/mean_400demos_06noise.npy", mean)
+    np.save("data/std_400demos_06noise.npy", std)
 expert_data1 = (expert_data1 - mean) / std
 expert_data2 = (expert_data2 - mean) / std
 expert_data3 = (expert_data3 - mean) / std

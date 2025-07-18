@@ -195,6 +195,7 @@ class PolicyPlayer:
                 cond.append(obs)
                 cond = np.hstack(cond)
                 cond_tensor = torch.tensor(cond, dtype=torch.float32, device=device).unsqueeze(0)
+                breakpoint()
                 sampled = ode_model.sample(attr=cond_tensor, traj_len=segment_length, n_samples=1, w=1., model_index=i)
                 seg_i = sampled.cpu().detach().numpy()[0]  # shape: (segment_length, action_size)
 
@@ -246,6 +247,8 @@ class PolicyPlayer:
 
         with open("data/pot_states_rotvec_20.npy", "rb") as f:
             obs = np.load(f)
+
+        breakpoint()
 
         planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], [obs_final1[cond_idx], obs_final2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T, n_implement=1)
         planned_traj1 =  planned_trajs[0] * std + mean
