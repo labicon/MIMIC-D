@@ -2,9 +2,19 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
+import matplotlib.pyplot as plt
+import random
+import pdb
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Set random seeds for reproducibility
+np.random.seed(42)
+torch.manual_seed(42)
+random.seed(42)
+
+# Define the Neural Network for Imitation Learning
 class ImitationNet(nn.Module):
     def __init__(self, input_size=4, hidden_size=64, output_size=2):
         super(ImitationNet, self).__init__()
@@ -19,173 +29,161 @@ class ImitationNet(nn.Module):
         x = self.fc3(x)
         return x
 
-def create_mpc_dataset(expert_data, planning_horizon=25):
-    n_traj, horizon, state_dim = expert_data.shape
-    n_subtraj = horizon
-
-    # Resulting array shape: (n_traj * n_subtraj, planning_horizon, state_dim)
-    result = []
-
-    for traj in expert_data:
-        for start_idx in range(n_subtraj):
-            # If not enough steps, pad with the last step
-            end_idx = start_idx + planning_horizon
-            if end_idx <= horizon:
-                sub_traj = traj[start_idx:end_idx]
-            else:
-                # Need padding
-                sub_traj = traj[start_idx:]
-                padding = np.repeat(traj[-1][np.newaxis, :], end_idx - horizon, axis=0)
-                sub_traj = np.concatenate([sub_traj, padding], axis=0)
-            result.append(sub_traj)
-
-    result = np.stack(result, axis=0)
-    return result
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
-
-# Parameters
-n_gradient_steps = 100_000
-batch_size = 64
-# model_size = {
-#     "d_model": 512,      # twice the transformer width
-#     "n_heads": 8,        # more attention heads
-#     "depth":   6,        # twice the number of layers
-#     "lin_scale": 256,    # larger conditional embedder
-# }
-model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-H = 25 # horizon, length of each trajectory
-T = 100 # total time steps
-n_epochs      = 500
-learning_rate = 1e-3
-
 # Define initial and final points, and a single central obstacle
-initial_point_up = np.array([0.0, 0.0])
-final_point_up = np.array([20.0, 0.0])
-final_point_down = np.array([0.0, 0.0])
-initial_point_down = np.array([20.0, 0.0])
-obstacle = (10, 0, 4.0) 
+initial_point1 = np.array([0.0, 0.0])
+final_point1 = np.array([20.0, 0.0])
+initial_point2 = np.array([20.0, 0.0])
+final_point2 = np.array([0.0, 0.0])
+obstacle = (10, 0, 4.0)  # Single central obstacle: (x, y, radius)
 
-# Loading training trajectories
-expert_data1 = np.load('data/expert_data1_100_traj.npy')
-expert_data2 = np.load('data/expert_data2_100_traj.npy')
-
-combined_data1 = np.concatenate((expert_data1, expert_data2), axis=0)
-mean = np.mean(combined_data1, axis=(0,1))
-std = np.std(combined_data1, axis=(0,1))
-expert_data1 = (expert_data1 - mean) / std
-expert_data2 = (expert_data2 - mean) / std
-
-# Define environment
-class TwoUnicycle():
-    def __init__(self, state_size=2, action_size=2):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.name = "TwoUnicycle"
-env = TwoUnicycle()
-
-# Prepare Data for Training
-# Create input-output pairs (state + goal -> next state)
+# Expert demonstration loading
+expert_data_1 = np.load('data/expert_data1_100_traj.npy')
+expert_data_2 = np.load('data/expert_data2_100_traj.npy')
 X_train1 = []
 Y_train1 = []
 X_train2 = []
 Y_train2 = []
 
-for traj in expert_data1:
-    for i in range(len(traj) - 1):
-        X_train1.append(np.hstack([traj[i], final_point_up]))  # Current state + goal
-        Y_train1.append(traj[i + 1])  # Next state
+for i in range(len(expert_data_1)):
+    for j in range(len(expert_data_1[i]) - 1):
+        X_train1.append(np.hstack([expert_data_1[i][j], expert_data_1[i][-1]]))  # Current state + goal
+        Y_train1.append(expert_data_1[i][j + 1])  # Next state
+X_train1 = torch.tensor(np.array(X_train1), dtype=torch.float32)  # Shape: (N, 4)
+Y_train1 = torch.tensor(np.array(Y_train1), dtype=torch.float32)  # Shape: (N, 2)
 
-for traj in expert_data2:
-    for i in range(len(traj) - 1):
-        X_train2.append(np.hstack([traj[i], final_point_down]))  # Current state + goal
-        Y_train2.append(traj[i + 1])  # Next state
-
-X_train1 = torch.tensor(np.array(X_train1), dtype=torch.float32).to(device)  # Shape: (N, 4)
-Y_train1 = torch.tensor(np.array(Y_train1), dtype=torch.float32).to(device)  # Shape: (N, 2)
-X_train2 = torch.tensor(np.array(X_train2), dtype=torch.float32).to(device)  # Shape: (N, 4)
-Y_train2 = torch.tensor(np.array(Y_train2), dtype=torch.float32).to(device)  # Shape: (N, 2)
+for i in range(len(expert_data_2)):
+    for j in range(len(expert_data_2[i]) - 1):
+        X_train2.append(np.hstack([expert_data_2[i][j], expert_data_2[i][-1]]))  # Current state + goal
+        Y_train2.append(expert_data_2[i][j + 1])  # Next state
+X_train2 = torch.tensor(np.array(X_train2), dtype=torch.float32)  # Shape: (N, 4)
+Y_train2 = torch.tensor(np.array(Y_train2), dtype=torch.float32)  # Shape: (N, 2)
 
 # Initialize Model, Loss Function, and Optimizers
-model1 = ImitationNet(input_size=4, hidden_size=64, output_size=2).to(device)
-model2 = ImitationNet(input_size=4, hidden_size=64, output_size=2).to(device)
+model1 = ImitationNet(input_size=4, hidden_size=64, output_size=2)
+model2 = ImitationNet(input_size=4, hidden_size=64, output_size=2)
 criterion = nn.MSELoss()  # Mean Squared Error Loss
-optimizer1 = optim.Adam(model1.parameters(), lr=learning_rate)
-optimizer2 = optim.Adam(model2.parameters(), lr=learning_rate)
+all_params = []
+all_params += list(model1.parameters())
+all_params += list(model2.parameters())
+optimizer = optim.Adam(all_params, lr=0.001, weight_decay=1e-4)
+
+model1, model2 = model1.to(device), model2.to(device)
+X_train1, Y_train1 = X_train1.to(device), Y_train1.to(device)
+X_train2, Y_train2 = X_train2.to(device), Y_train2.to(device)
 
 # Train the Model
-losses1 = []
-losses2 = []
+def train_model(model, optimizer, criterion, X_train, Y_train, num_epochs=5000):
+    losses = []
 
-for epoch in range(1, n_epochs+1):
-    model1.train()
-    model2.train()
-    total1 = 0.0
-    total2 = 0.0
+    for epoch in range(num_epochs):
+        predictions = model(X_train)
+        loss = criterion(predictions, Y_train)
 
-    # Single pass for both models
-    # (you could also interleave but the key is: no double backward)
-    preds1 = model1(X_train1)
-    loss1  = criterion(preds1, Y_train1)
-    optimizer1.zero_grad()
-    loss1.backward()
-    optimizer1.step()
+        # Backpropagation and optimization
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-    preds2 = model2(X_train2)
-    loss2  = criterion(preds2, Y_train2)
-    optimizer2.zero_grad()
-    loss2.backward()
-    optimizer2.step()
+        losses.append(loss.item())
+        if (epoch + 1) % 50 == 0:
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+    return model, losses
 
-    total1 += loss1.item()
-    total2 += loss2.item()
+def joint_train(model1, model2, optimizer, criterion, X_train1, Y_train1, X_train2, Y_train2, num_epochs=5000):
+    losses1 = []
+    losses2 = []
 
-    if epoch % 10 == 0:
-        print(f"Epoch {epoch:3d} | Loss1: {total1:.4f} | Loss2: {total2:.4f}")
+    for epoch in range(num_epochs):
+        loss_total = 0.0
 
+        predictions1 = model1(X_train1)
+        loss1 = criterion(predictions1, Y_train1)
+        loss_total += loss1
 
-torch.save(model1.state_dict(), "trained_models/bc/bc_agent1.pth")
-torch.save(model2.state_dict(), "trained_models/bc/bc_agent2.pth")
+        predictions2 = model2(X_train2)
+        loss2 = criterion(predictions2, Y_train2)
+        loss_total += loss2
 
+        # Backpropagation and optimization
+        optimizer.zero_grad()
+        loss_total.backward()
+        optimizer.step()
+
+        losses1.append(loss1.item())
+        losses2.append(loss2.item())
+
+        if (epoch + 1) % 50 == 0:
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss1: {loss1.item():.4f}, Loss2: {loss2.item():.4f}')
+
+    return model1, model2, losses1, losses2
+
+# trained_model1, losses1 = train_model(model1, optimizer1, criterion, X_train1, Y_train1)
+# trained_model2, losses2 = train_model(model2, optimizer2, criterion, X_train2, Y_train2)
+# trained_model1, trained_model2, losses1, losses2 = joint_train(model1, model2, optimizer, criterion, X_train1, Y_train1, X_train2, Y_train2)
+
+                      
+save_path1 = "trained_models/bc/single_agent_model1_joint.pth"
+save_path2 = "trained_models/bc/single_agent_model2_joint.pth"
+# torch.save(model1.state_dict(), save_path1)
+# torch.save(model2.state_dict(), save_path2)
+
+model1 = ImitationNet(input_size=4, hidden_size=64, output_size=2)
+model1.load_state_dict(torch.load(save_path1, map_location='cpu'))
 model1.eval()
+
+model2 = ImitationNet(input_size=4, hidden_size=64, output_size=2)
+model2.load_state_dict(torch.load(save_path2, map_location='cpu'))
 model2.eval()
 
-num_samples = 100
-T = 100
+# Generate a New Trajectory Using the Trained Model
+noise_std = 0.1
+generated_trajectories1 = []
+generated_trajectories2 = []
 
-for i in range(num_samples):
-    noise_std = 0.4
-    initial1 = initial_point_up + noise_std * np.random.randn(*np.shape(initial_point_up))
-    initial1 = (initial1 - mean) / std
-    final1 = final_point_up + noise_std * np.random.randn(*np.shape(final_point_up))
-    final1 = (final1 - mean) / std
-    initial2 = initial_point_down + noise_std * np.random.randn(*np.shape(initial_point_down))
-    initial2 = (initial2 - mean) / std
-    final2 = final_point_down + noise_std * np.random.randn(*np.shape(final_point_down))
-    final2 = (final2 - mean) / std
+for _ in range(100):
+    initial1 = initial_point1 + noise_std * np.random.randn(*np.shape(initial_point1))
+    final1 = final_point1 + noise_std * np.random.randn(*np.shape(final_point1))
+    initial2 = initial_point2 + noise_std * np.random.randn(*np.shape(initial_point2))
+    final2 = final_point2 + noise_std * np.random.randn(*np.shape(final_point2))
+    with torch.no_grad():
+        state1 = np.hstack([initial1, final1])  # Initial state + goal
+        state1 = torch.tensor(state1, dtype=torch.float32).unsqueeze(0)
+        traj1 = [initial1]
 
-    traj1 = [initial1.copy()]
-    traj2 = [initial2.copy()]
+        state2 = np.hstack([initial2, final2])  # Initial state + goal
+        state2 = torch.tensor(state2, dtype=torch.float32).unsqueeze(0)
+        traj2 = [initial2]
 
-    for t in range(T):
+        for _ in range(100 - 1):  # 100 steps total
+            next_state1 = model1(state1).numpy().squeeze()
+            traj1.append(next_state1)
+            state1 = torch.tensor(np.hstack([next_state1, final1]), dtype=torch.float32).unsqueeze(0)
 
-        inp1 = torch.tensor(np.hstack([initial1, final1]), dtype=torch.float32, device=device)
-        inp2 = torch.tensor(np.hstack([initial2, final2]), dtype=torch.float32, device=device)
+            next_state2 = model2(state2).numpy().squeeze()
+            traj2.append(next_state2)
+            state2 = torch.tensor(np.hstack([next_state2, final2]), dtype=torch.float32).unsqueeze(0)
 
-        with torch.no_grad():
-            s1_next_norm = model1(inp1).cpu().numpy()
-            s2_next_norm = model2(inp2).cpu().numpy()
+    generated_trajectories1.append(np.array(traj1))
+    generated_trajectories2.append(np.array(traj2))
 
-        s1 = s1_next_norm * std + mean
-        s2 = s2_next_norm * std + mean
 
-        traj1.append(s1.copy())
-        traj2.append(s2.copy())
+# Plotting
+plt.figure(figsize=(20, 8))
+for i in range(len(generated_trajectories1)):
+    traj1 = generated_trajectories1[i]
+    traj2 = generated_trajectories2[i]
+    plt.plot(traj1[:, 0], traj1[:, 1], 'b-', alpha=0.5)
+    plt.plot(traj2[:, 0], traj2[:, 1], 'C1-', alpha=0.5)
+    plt.scatter(traj1[0, 0], traj1[0, 1], c='green', s=10)  # Start point
+    plt.scatter(traj1[-1, 0], traj1[-1, 1], c='red', s=10)  # End point
+    plt.scatter(traj2[0, 0], traj2[0, 1], c='green', s=10)  # Start point
+    plt.scatter(traj2[-1, 0], traj2[-1, 1], c='red', s=10)  # End point
 
-    traj1 = np.stack(traj1, axis=0)
-    traj2 = np.stack(traj2, axis=0)
+ox, oy, r = obstacle
+circle = plt.Circle((ox, oy), r, color='gray', alpha=0.3)
+plt.gca().add_patch(circle)
 
-    # save each rollout
-    np.save(f"sampled_trajs/bc/traj1_{i:03d}.npy", traj1)
-    np.save(f"sampled_trajs/bc/traj2_{i:03d}.npy", traj2)
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.grid(True)
+plt.show()
