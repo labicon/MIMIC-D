@@ -9,6 +9,14 @@ import matplotlib.pyplot as plt
 from discrete import *
 import sys
 import pdb
+import random
+random.seed(0)
+np.random.seed(0)
+torch.manual_seed
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(0)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 def create_mpc_dataset(expert_data, planning_horizon=25):
     n_traj, horizon, state_dim = expert_data.shape
@@ -53,10 +61,6 @@ T = 1000 # total time steps
 expert_data = np.load("data/expert_actions_rotvec_sparse_1000.npy")
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
-orig1 = expert_data1
-orig2 = expert_data2
-orig1 = np.array(orig1)
-orig2 = np.array(orig2)
 expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
 expert_data2 = create_mpc_dataset(expert_data2, planning_horizon=H)
 
@@ -74,8 +78,6 @@ except FileNotFoundError:
 # Normalize data
 expert_data1 = (expert_data1 - mean) / std
 expert_data2 = (expert_data2 - mean) / std
-orig1 = (orig1 - mean) / std
-orig2 = (orig2 - mean) / std
 
 # Define an enviornment objcet which has attrubutess like name, state_size, action_size etc
 class TwoArmLift():
@@ -98,8 +100,6 @@ with open("data/pot_states_1000.npy", "rb") as f:
     obs = np.load(f)
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
-obs_final1 = np.repeat(orig1[:, -1, :], repeats=T, axis=0)
-obs_final2 = np.repeat(orig2[:, -1, :], repeats=T, axis=0)
 obs = np.repeat(obs, repeats=T, axis=0)
 obs1 = np.hstack([obs_init1, obs_init2, obs])
 obs2 = np.hstack([obs_init2, obs_init1, obs])
@@ -118,7 +118,7 @@ action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sig
 action_cond_ode.load(extra=end)
 
 # Sampling
-def reactive_mpc_plan(ode_model, initial_states, final_states, obs, segment_length=100, total_steps=2000, n_implement=1):
+def reactive_mpc_plan(ode_model, initial_states, obs, segment_length=100, total_steps=2000, n_implement=1):
     """
     Plans a full trajectory (total_steps long) by iteratively planning
     segment_length-steps using the diffusion model and replanning at every timestep.
@@ -135,8 +135,12 @@ def reactive_mpc_plan(ode_model, initial_states, final_states, obs, segment_leng
     - full_traj: a numpy array of shape (n_agents, total_steps, state_size)
     """
     full_traj = []
+    initial_states = [np.array([-0.83896989,  1.39478993,  0.12084441,  2.08174162,  0.71107765,
+                                -0.95662494, -0.59402534]), np.array([-0.37961092,  1.40740813, -2.30580383,
+                                -0.8449774 , -0.28674541,  1.43522927,  1.72807314])]
     current_states = initial_states.copy()      # shape: (n_agents, state_size)
     n_agents = len(current_states)
+    breakpoint()
 
     for seg in range(total_steps // n_implement):
 
@@ -150,6 +154,10 @@ def reactive_mpc_plan(ode_model, initial_states, final_states, obs, segment_leng
                     cond.append(base_states[j])
             cond.append(obs)
             cond = np.hstack(cond)
+    #         cond = np.array([-0.83896989,  1.39478993,  0.12084441,  2.08174162,  0.71107765,
+    #    -0.95662494, -0.59402534, -0.37961092,  1.40740813, -2.30580383,
+    #    -0.8449774 , -0.28674541,  1.43522927,  1.72807314,  0.47816622,
+    #    -0.14264476,  0.09862956,  0.20981865,  0.0048536 ,  0.02984436])
             cond_tensor = torch.tensor(cond, dtype=torch.float32, device=ode_model.device).unsqueeze(0)
 
             sampled = ode_model.sample(
@@ -179,8 +187,9 @@ def reactive_mpc_plan(ode_model, initial_states, final_states, obs, segment_leng
 
 for i in range(10):
     cond_idx = i
-    planned_trajs = reactive_mpc_plan(action_cond_ode, [obs_init1[cond_idx], obs_init2[cond_idx]], [obs_final1[cond_idx], obs_final2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T, n_implement=10)
+    # breakpoint()
+    planned_trajs = reactive_mpc_plan(action_cond_ode, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T, n_implement=10)
     planned_traj1 =  planned_trajs[0] * std + mean
-    np.save("samples/P200E10_1000T_fullstate_nofinalpos2/planned_traj1_%s_new.npy" % cond_idx, planned_traj1)
+    np.save("samples/P200E10_1000T_fullstate_nofinalpos_hardwarestate/planned_traj1_%s_new.npy" % cond_idx, planned_traj1)
     planned_traj2 = planned_trajs[1] * std + mean
-    np.save("samples/P200E10_1000T_fullstate_nofinalpos2/planned_traj2_%s_new.npy" % cond_idx, planned_traj2)
+    np.save("samples/P200E10_1000T_fullstate_nofinalpos_hardwarestate/planned_traj2_%s_new.npy" % cond_idx, planned_traj2)
