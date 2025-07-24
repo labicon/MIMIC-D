@@ -135,9 +135,9 @@ def reactive_mpc_plan(ode_model, initial_states, obs, segment_length=100, total_
     - full_traj: a numpy array of shape (n_agents, total_steps, state_size)
     """
     full_traj = []
-    initial_states = [np.array([-0.83896989,  1.39478993,  0.12084441,  2.08174162,  0.71107765,
-                                -0.95662494, -0.59402534]), np.array([-0.37961092,  1.40740813, -2.30580383,
-                                -0.8449774 , -0.28674541,  1.43522927,  1.72807314])]
+    initial_states = [np.array([-0.83898655,  1.39477865,  0.24218132,
+                                2.08176365,  0.7110728 , -0.95662697, -0.59402534]), np.array([-0.37961092,  1.40740813, -2.30580383, -0.8449774 , -0.28674541,
+                                1.43522927,  1.72807314])]
     current_states = initial_states.copy()      # shape: (n_agents, state_size)
     n_agents = len(current_states)
     breakpoint()
