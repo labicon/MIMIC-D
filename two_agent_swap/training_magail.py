@@ -213,32 +213,31 @@ def train_magail(generator1, discriminator1, generator2, discriminator2,
 
     return generator1, discriminator1, generator2, discriminator2
 
-print("Starting MAGAIL training...")
-trained_generator1, trained_discriminator1, trained_generator2, trained_discriminator2 = train_magail(
-    generator1, discriminator1, generator2, discriminator2,
-    gen_optimizer, disc_optimizer,
-    X_expert_discriminator1, X_expert_discriminator2,
-    initial_point1, final_point1, initial_point2, final_point2,
-    num_epochs=5000 # You might need more epochs for GANs
-)
-print("MAGAIL training complete.")
+# print("Starting MAGAIL training...")
+# trained_generator1, trained_discriminator1, trained_generator2, trained_discriminator2 = train_magail(
+#     generator1, discriminator1, generator2, discriminator2,
+#     gen_optimizer, disc_optimizer,
+#     X_expert_discriminator1, X_expert_discriminator2,
+#     initial_point1, final_point1, initial_point2, final_point2,
+#     num_epochs=5000 # You might need more epochs for GANs
+# )
+# print("MAGAIL training complete.")
 
 # Save the trained generator models
 save_path_gen1 = "trained_models/magail/generator1_joint.pth"
 save_path_gen2 = "trained_models/magail/generator2_joint.pth"
-os.makedirs(os.path.dirname(save_path_gen1), exist_ok=True)
-torch.save(trained_generator1.state_dict(), save_path_gen1)
-torch.save(trained_generator2.state_dict(), save_path_gen2)
+# torch.save(trained_generator1.state_dict(), save_path_gen1)
+# torch.save(trained_generator2.state_dict(), save_path_gen2)
 print("Trained generator models saved.")
 
 # Load models (demonstration, already loaded above for testing purposes)
-# model1 = GeneratorNet(input_size=4, hidden_size=64, output_size=2)
-# model1.load_state_dict(torch.load(save_path_gen1, map_location='cpu'))
-# model1.eval()
+model1 = GeneratorNet(input_size=4, hidden_size=64, output_size=2)
+model1.load_state_dict(torch.load(save_path_gen1, map_location='cpu'))
+model1.eval()
 
-# model2 = GeneratorNet(input_size=4, hidden_size=64, output_size=2)
-# model2.load_state_dict(torch.load(save_path_gen2, map_location='cpu'))
-# model2.eval()
+model2 = GeneratorNet(input_size=4, hidden_size=64, output_size=2)
+model2.load_state_dict(torch.load(save_path_gen2, map_location='cpu'))
+model2.eval()
 
 
 # Generate a New Trajectory Using the Trained Model
