@@ -22,8 +22,8 @@ class GenNet(nn.Module):
 # 3) Instantiate & load weights
 G1 = GenNet().to(device)
 G2 = GenNet().to(device)
-G1.load_state_dict(torch.load("magail_models_gpu/G1.pth", map_location=device))
-G2.load_state_dict(torch.load("magail_models_gpu/G2.pth", map_location=device))
+G1.load_state_dict(torch.load("trained_models/magail/G1.pth", map_location=device))
+G2.load_state_dict(torch.load("trained_models/magail/G2.pth", map_location=device))
 G1.eval(); G2.eval()
 
 # 4) Load expert trajectories for normalization & conditioning

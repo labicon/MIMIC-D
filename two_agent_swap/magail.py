@@ -1,184 +1,155 @@
+# training_magail_gpu.py
+
+import os, random
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import matplotlib.pyplot as plt
+from torch.utils.data import TensorDataset, DataLoader
 
-# Define the Generator MLP model for imitation learning
-class Generator(nn.Module):
-    def __init__(self, input_size=6, hidden_size=64, output_size=4):
-        super(Generator, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, output_size)
-        self.relu = nn.ReLU()
+# 1) Device & performance tweak
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.backends.cudnn.benchmark = True
+torch.manual_seed(42)
+np.random.seed(42)
+random.seed(42)
 
+# 2) Hyperparameters
+state_dim   = 4       # e.g. [x, y, goal_x, goal_y]
+action_dim  = 2       # e.g. next [x, y]
+hidden_size = 64
+batch_size  = 64
+n_epochs    = 2000
+lr_G        = 1e-4
+lr_D        = 1e-4
+
+# 3) Models
+class GenNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim,   hidden_size), nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size), nn.ReLU(),
+            nn.Linear(hidden_size, action_dim)
+        )
     def forward(self, x):
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        return self.net(x)
 
-# Define the Discriminator model
-class Discriminator(nn.Module):
-    def __init__(self, input_size=4, hidden_size=64):
-        super(Discriminator, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, 1)
-        self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
+class DiscNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim+action_dim, hidden_size), nn.LeakyReLU(0.2),
+            nn.Linear(hidden_size,          hidden_size), nn.LeakyReLU(0.2),
+            nn.Linear(hidden_size, 1)
+        )
+    def forward(self, x, a):
+        return self.net(torch.cat([x, a], dim=1)).squeeze(1)
 
-    def forward(self, x):
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.sigmoid(self.fc3(x))
-        return x
+G1 = GenNet().to(device)
+G2 = GenNet().to(device)
+D1 = DiscNet().to(device)
+D2 = DiscNet().to(device)
 
-# Example expert_data with updated format and 50 steps per trajectory
-import csv
-with open('data/full_traj_two_simple.csv', 'r') as file:
-    reader = csv.reader(file)
-    all_points = []
-    for row in reader:
-        x1, y1, x2, y2 = float(row[0]), float(row[1]), float(row[2]), float(row[3])
-        all_points.append((x1, y1, x2, y2))
+optG = optim.Adam(list(G1.parameters()) + list(G2.parameters()), lr=lr_G)
+optD = optim.Adam(list(D1.parameters()) + list(D2.parameters()), lr=lr_D)
+bce_logits = nn.BCEWithLogitsLoss()
 
-num_trajectories = 1000
-points_per_trajectory = 100
+# 4) Load expert data & build (s,a) pairs
+expert1 = np.load('data/expert_data1_100_traj.npy')  # shape (n_traj, T, 2)
+expert2 = np.load('data/expert_data2_100_traj.npy')
 
-expert_data = [
-    all_points[i * points_per_trajectory:(i + 1) * points_per_trajectory]
-    for i in range(num_trajectories)
-]
+def build_sa(expert):
+    S, A = [], []
+    for traj in expert:
+        goal = traj[-1]
+        for t in range(len(traj)-1):
+            s = np.hstack([traj[t], goal])  # (4,)
+            a = traj[t+1]                   # (2,)
+            S.append(s); A.append(a)
+    return np.stack(S), np.stack(A)
 
-# Define goals for each agent
-agent1_goal = [20, 0]
-agent2_goal = [0, 0]
+S1, A1 = build_sa(expert1)
+S2, A2 = build_sa(expert2)
 
-# Prepare the expert data with goal distance as input
-X_expert = []
-for trajectory in expert_data:
-    for x1, y1, x2, y2 in trajectory:
-        # Distances to goal
-        dist_to_goal1 = np.sqrt((agent1_goal[0] - x1) ** 2 + (agent1_goal[1] - y1) ** 2)
-        dist_to_goal2 = np.sqrt((agent2_goal[0] - x2) ** 2 + (agent2_goal[1] - y2) ** 2)
-        X_expert.append([x1, y1, x2, y2])
+# 5) Separate normalization for states & actions
+state_data  = np.concatenate([S1, S2], axis=0)
+action_data = np.concatenate([A1, A2], axis=0)
 
-X_expert = torch.tensor(X_expert, dtype=torch.float32)
+state_mean, state_std   = state_data.mean(0),  state_data.std(0)  + 1e-6
+action_mean, action_std = action_data.mean(0), action_data.std(0) + 1e-6
 
-# Initialize generator, discriminator, and optimizers
-generator = Generator(input_size=6, hidden_size=64, output_size=4)
-discriminator = Discriminator(input_size=4, hidden_size=64)
+S1 = (S1 - state_mean) / state_std
+S2 = (S2 - state_mean) / state_std
+A1 = (A1 - action_mean) / action_std
+A2 = (A2 - action_mean) / action_std
 
-gen_optimizer = optim.Adam(generator.parameters(), lr=0.0005)
-disc_optimizer = optim.Adam(discriminator.parameters(), lr=0.0005)
+# 6) Torch datasets & loaders
+tS1 = torch.tensor(S1, dtype=torch.float32)
+tA1 = torch.tensor(A1, dtype=torch.float32)
+tS2 = torch.tensor(S2, dtype=torch.float32)
+tA2 = torch.tensor(A2, dtype=torch.float32)
 
-# Loss function
-bce_loss = nn.BCELoss()
+loader1 = DataLoader(TensorDataset(tS1,tA1),
+                     batch_size=batch_size, shuffle=True, drop_last=True)
+loader2 = DataLoader(TensorDataset(tS2,tA2),
+                     batch_size=batch_size, shuffle=True, drop_last=True)
 
-# Training loop with batching and size alignment
-num_epochs = 1000
-batch_size = 128
-num_batches = X_expert.size(0) // batch_size
+# 7) Training loop
+for epoch in range(1, n_epochs+1):
+    G1.train(); G2.train(); D1.train(); D2.train()
+    lossD_sum = 0.0
+    lossG_sum = 0.0
 
-for epoch in range(num_epochs):
-    generator.train()
-    discriminator.train()
+    for (x1, a1), (x2, a2) in zip(loader1, loader2):
+        # move batch to GPU
+        x1, a1 = x1.to(device), a1.to(device)
+        x2, a2 = x2.to(device), a2.to(device)
 
-    for batch_idx in range(num_batches):
-        # === Train Discriminator ===
-        disc_optimizer.zero_grad()
+        # ——— Discriminator update ———
+        # Agent1
+        with torch.no_grad():
+            fake1 = G1(x1)
+        real_logit1 = D1(x1, a1)
+        fake_logit1 = D1(x1, fake1)
+        lossD1 = 0.5*(bce_logits(real_logit1, torch.ones_like(real_logit1)) +
+                      bce_logits(fake_logit1, torch.zeros_like(fake_logit1)))
 
-        # Prepare real (expert) batch
-        start_idx = batch_idx * batch_size
-        end_idx = start_idx + batch_size
-        real_batch = X_expert[start_idx:end_idx]
-        real_labels = torch.ones(real_batch.size(0), 1)  # Match batch size
+        # Agent2
+        with torch.no_grad():
+            fake2 = G2(x2)
+        real_logit2 = D2(x2, a2)
+        fake_logit2 = D2(x2, fake2)
+        lossD2 = 0.5*(bce_logits(real_logit2, torch.ones_like(real_logit2)) +
+                      bce_logits(fake_logit2, torch.zeros_like(fake_logit2)))
 
-        # Discriminator on real data
-        real_out = discriminator(real_batch)
-        real_loss = bce_loss(real_out, real_labels)
+        lossD = lossD1 + lossD2
+        optD.zero_grad()
+        lossD.backward()
+        optD.step()
 
-        # Generate fake data batch
-        fake_batch = []
-        for x1, y1, x2, y2 in expert_data[batch_idx]:
-            dist_to_goal1 = np.sqrt((agent1_goal[0] - x1) ** 2 + (agent1_goal[1] - y1) ** 2)
-            dist_to_goal2 = np.sqrt((agent2_goal[0] - x2) ** 2 + (agent2_goal[1] - y2) ** 2)
-            input_tensor = torch.tensor([x1, y1, x2, y2, dist_to_goal1, dist_to_goal2], dtype=torch.float32).unsqueeze(0)
-            fake_batch.append(generator(input_tensor))
+        # ——— Generator update ———
+        fake1 = G1(x1)
+        lossG1 = bce_logits(D1(x1, fake1), torch.ones_like(fake1[:,0]))
+        fake2 = G2(x2)
+        lossG2 = bce_logits(D2(x2, fake2), torch.ones_like(fake2[:,0]))
 
-        fake_batch = torch.cat(fake_batch)
-        fake_labels = torch.zeros(fake_batch.size(0), 1)  # Match fake batch size
+        lossG = lossG1 + lossG2
+        optG.zero_grad()
+        lossG.backward()
+        optG.step()
 
-        # Discriminator on fake data
-        fake_out = discriminator(fake_batch.detach())
-        fake_loss = bce_loss(fake_out, fake_labels)
+        lossD_sum += lossD.item()
+        lossG_sum += lossG.item()
 
-        # Total discriminator loss
-        disc_loss = real_loss + fake_loss
-        disc_loss.backward()
-        disc_optimizer.step()
+    if epoch % 100 == 0:
+        avgD = lossD_sum / len(loader1)
+        avgG = lossG_sum / len(loader1)
+        print(f"Epoch {epoch:4d} | lossD: {avgD:.4f} | lossG: {avgG:.4f}")
 
-        # === Train Generator ===
-        gen_optimizer.zero_grad()
-
-        # Generator loss: trick discriminator into thinking fake is real
-        gen_labels = torch.ones(fake_batch.size(0), 1)  # Label fake data as real
-        gen_loss = bce_loss(discriminator(fake_batch), gen_labels)
-        gen_loss.backward()
-        gen_optimizer.step()
-
-    if (epoch + 1) % 50 == 0:
-        print(f"Epoch [{epoch+1}/{num_epochs}], Disc Loss: {disc_loss.item():.4f}, Gen Loss: {gen_loss.item():.4f}")
-
-# Generate trajectories
-agent1_trajectory = []
-agent2_trajectory = []
-with torch.no_grad():
-    x1, y1, x2, y2 = 0, 0, 20, 0  # Initial positions
-    for _ in range(50):  # Generate 50 steps
-        # Calculate distances to goals
-        dist_to_goal1 = np.sqrt((agent1_goal[0] - x1) ** 2 + (agent1_goal[1] - y1) ** 2)
-        dist_to_goal2 = np.sqrt((agent2_goal[0] - x2) ** 2 + (agent2_goal[1] - y2) ** 2)
-        
-        # Create input tensor
-        input_tensor = torch.tensor([x1, y1, x2, y2, dist_to_goal1, dist_to_goal2], dtype=torch.float32).unsqueeze(0)
-        
-        # Predict next positions
-        next_positions = generator(input_tensor).squeeze(0)  # Remove batch dimension
-        
-        # Unpack predictions
-        x1, y1 = next_positions[:2].tolist()  # First two elements for Agent 1
-        x2, y2 = next_positions[2:].tolist()  # Last two elements for Agent 2
-        
-        # Append to trajectories
-        agent1_trajectory.append((x1, y1))
-        agent2_trajectory.append((x2, y2))
-
-
-# Convert trajectories to numpy arrays for plotting
-agent1_trajectory = np.array(agent1_trajectory)
-agent2_trajectory = np.array(agent2_trajectory)
-
-# Plot the generated trajectories
-plt.figure(figsize=(10, 6))
-plt.plot(agent1_trajectory[:, 0], agent1_trajectory[:, 1], label='Agent 1 Trajectory')
-plt.plot(agent2_trajectory[:, 0], agent2_trajectory[:, 1], label='Agent 2 Trajectory')
-
-# Plot the start and end points
-plt.scatter(0, 0, c='blue', s=100, label='Agent 1 Start')
-plt.scatter(20, 0, c='cyan', s=100, label='Agent 1 Goal')
-plt.scatter(20, 0, c='red', s=100, label='Agent 2 Start')
-plt.scatter(0, 0, c='orange', s=100, label='Agent 2 Goal')
-
-# Plot the obstacle
-obstacle_circle = plt.Circle((10, 0), 4, color='gray', alpha=0.3)
-plt.gca().add_patch(obstacle_circle)
-
-plt.xlabel("X")
-plt.ylabel("Y")
-plt.legend()
-plt.title("Generated Trajectories for Agents with GAIL")
-plt.grid(True)
-plt.show()
+# 8) Save models
+torch.save(G1.state_dict(), "trained_models/magail/G1.pth")
+torch.save(G2.state_dict(), "trained_models/magail/G2.pth")
+torch.save(D1.state_dict(), "trained_models/magail/D1.pth")
+torch.save(D2.state_dict(), "trained_models/magail/D2.pth")
+print("Training complete; models saved under trained_models/magail/")  
