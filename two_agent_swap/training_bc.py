@@ -140,7 +140,7 @@ noise_std = 0.1
 generated_trajectories1 = []
 generated_trajectories2 = []
 
-for _ in range(100):
+for i in range(100):
     initial1 = initial_point1 + noise_std * np.random.randn(*np.shape(initial_point1))
     final1 = final_point1 + noise_std * np.random.randn(*np.shape(final_point1))
     initial2 = initial_point2 + noise_std * np.random.randn(*np.shape(initial_point2))
@@ -164,7 +164,9 @@ for _ in range(100):
             state2 = torch.tensor(np.hstack([next_state2, final2]), dtype=torch.float32).unsqueeze(0)
 
     generated_trajectories1.append(np.array(traj1))
+    # np.save(f"sampled_trajs/bc/mpc_traj1_{i}.npy", np.array(traj1))
     generated_trajectories2.append(np.array(traj2))
+    # np.save(f"sampled_trajs/bc/mpc_traj2_{i}.npy", np.array(traj2))
 
 
 # Plotting

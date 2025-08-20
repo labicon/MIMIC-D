@@ -1,111 +1,98 @@
 import torch
 import numpy as np
-from utils.utils import Normalizer, set_seed
 from utils.conditional_Action_DiT import Conditional_ODE
 import matplotlib.pyplot as plt
 from utils.discrete import *
 import sys
-import csv
 import pdb
+import csv
+from utils.mpc_util import reactive_mpc_plan_nolf
+
+def create_mpc_dataset(expert_data, planning_horizon=25):
+    n_traj, horizon, state_dim = expert_data.shape
+    n_subtraj = horizon
+
+    # Resulting array shape: (n_traj * n_subtraj, planning_horizon, state_dim)
+    result = []
+
+    for traj in expert_data:
+        for start_idx in range(n_subtraj):
+            # If not enough steps, pad with the last step
+            end_idx = start_idx + planning_horizon
+            if end_idx <= horizon:
+                sub_traj = traj[start_idx:end_idx]
+            else:
+                # Need padding
+                sub_traj = traj[start_idx:]
+                padding = np.repeat(traj[-1][np.newaxis, :], end_idx - horizon, axis=0)
+                sub_traj = np.concatenate([sub_traj, padding], axis=0)
+            result.append(sub_traj)
+
+    result = np.stack(result, axis=0)
+    return result
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
 
 # Parameters
 n_gradient_steps = 100_000
 batch_size = 64
+# model_size = {
+#     "d_model": 512,      # twice the transformer width
+#     "n_heads": 8,        # more attention heads
+#     "depth":   6,        # twice the number of layers
+#     "lin_scale": 256,    # larger conditional embedder
+# }
 model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-H = 100 # horizon, length of each trajectory
+H = 25 # horizon, length of each trajectory
+T = 100 # total time steps
 
 # Define initial and final points, and a single central obstacle
 initial_point_up = np.array([0.0, 0.0])
 final_point_up = np.array([20.0, 0.0])
 final_point_down = np.array([0.0, 0.0])
 initial_point_down = np.array([20.0, 0.0])
-obstacle = (10, 0, 4.0)  # Single central obstacle: (x, y, radius)
+obstacle = (10, 0, 4.0) 
 
-# Loading the trajectories
-all_points1 = []
-all_points2 = []
-with open('data/trajs_noise1.csv', 'r') as file:
-    reader = csv.reader(file)
-    for row in reader:
-        x1, y1 = float(row[4]), float(row[5])
-        x2, y2 = float(row[7]), float(row[8])
-        all_points1.append([x1, y1])
-        all_points2.append([x2, y2])
+# Loading training trajectories
+expert_data_1 = np.load('data/expert_data1_100_traj.npy')
+expert_data_2 = np.load('data/expert_data2_100_traj.npy')
+orig1 = expert_data_1
+orig2 = expert_data_2
+orig1 = np.array(orig1)
+orig2 = np.array(orig2)
 
-num_trajectories = 1000
-points_per_trajectory = 100
+expert_data1 = create_mpc_dataset(expert_data_1, planning_horizon=H)
+expert_data2 = create_mpc_dataset(expert_data_2, planning_horizon=H)
 
-expert_data1 = [
-    all_points1[i * points_per_trajectory:(i + 1) * points_per_trajectory]
-    for i in range(num_trajectories)
-]
-first_trajectory1 = expert_data1[0]
-x1 = [point[0] for point in first_trajectory1]
-y1 = [point[1] for point in first_trajectory1]
-
-expert_data2 = [
-    all_points2[i * points_per_trajectory:(i + 1) * points_per_trajectory]
-    for i in range(num_trajectories)
-]
-first_trajectory2 = expert_data2[0]
-x2 = [point[0] for point in first_trajectory2]
-y2 = [point[1] for point in first_trajectory2]
-
-
-expert_data1 = np.array(expert_data1)
-expert_data2 = np.array(expert_data2)
-
-
-# Compute mean and standard deviation
-combined_data = np.concatenate((expert_data1, expert_data2), axis=0)
-mean = np.mean(combined_data, axis=(0,1))
-std = np.std(combined_data, axis=(0,1))
-
-# Normalize data
+combined_data1 = np.concatenate((expert_data1, expert_data2), axis=0)
+combined_data2 = np.concatenate((orig1, orig2), axis=0)
+mean1 = np.mean(combined_data1, axis=(0,1))
+std1 = np.std(combined_data1, axis=(0,1))
+mean2 = np.mean(combined_data2, axis=(0,1))
+std2 = np.std(combined_data2, axis=(0,1))
+mean = (mean1 + mean2)/2
+std = (std1 + std2)/2
 expert_data1 = (expert_data1 - mean) / std
 expert_data2 = (expert_data2 - mean) / std
+orig1 = (orig1 - mean) / std
+orig2 = (orig2 - mean) / std
 
-# Prepare Data for Training
-X_train1 = []
-Y_train1 = []
-
-for traj in expert_data1:
-    for i in range(len(traj) - 1):
-        X_train1.append(np.hstack([traj[i], final_point_up]))  # Current state + goal
-        Y_train1.append(traj[i + 1])  # Next state
-
-X_train1 = torch.tensor(np.array(X_train1), dtype=torch.float32)  # Shape: (N, 4)
-Y_train1 = torch.tensor(np.array(Y_train1), dtype=torch.float32)  # Shape: (N, 2)
-
-X_train2 = []
-Y_train2 = []
-
-for traj in expert_data2:
-    for i in range(len(traj) - 1):
-        X_train2.append(np.hstack([traj[i], final_point_down]))  # Current state + goal
-        Y_train2.append(traj[i + 1])  # Next state
-
-X_train2 = torch.tensor(np.array(X_train2), dtype=torch.float32)  # Shape: (N, 4)
-Y_train2 = torch.tensor(np.array(Y_train2), dtype=torch.float32)  # Shape: (N, 2)
-
-# define an enviornment objcet which has attrubutess like name, state_size, action_size etc
+# Define environment
 class TwoUnicycle():
     def __init__(self, state_size=2, action_size=2):
         self.state_size = state_size
         self.action_size = action_size
         self.name = "TwoUnicycle"
-
 env = TwoUnicycle()
 
-# Setting up conditional vectors
+# Setting up training data
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
-obs_final1 = expert_data1[:, -1, :]
-obs_final2 = expert_data2[:, -1, :]
-obs1 = np.hstack([obs_init1, obs_final1])
-obs2 = np.hstack([obs_init2, obs_final2])
+obs_final1 = np.repeat(orig1[:, -1, :], repeats=100, axis=0)
+obs_final2 = np.repeat(orig2[:, -1, :], repeats=100, axis=0)
+obs1 = np.hstack([obs_init1, obs_final1, obs_init2, obs_final2])
+obs2 = np.hstack([obs_init2, obs_final2, obs_init1, obs_final1])
 obs_temp1 = obs1
 obs_temp2 = obs2
 actions1 = expert_data1[:, :H-1, :]
@@ -117,38 +104,25 @@ attr1 = obs1
 attr2 = obs2
 attr_dim1 = attr1.shape[1]
 attr_dim2 = attr2.shape[1]
-assert attr_dim1 == env.state_size * 2
-assert attr_dim2 == env.state_size * 2
+assert attr_dim1 == env.state_size * 4
+assert attr_dim2 == env.state_size * 4
 
 actions1 = torch.FloatTensor(actions1).to(device)
 actions2 = torch.FloatTensor(actions2).to(device)
 sigma_data1 = actions1.std().item()
 sigma_data2 = actions2.std().item()
-
+sig = np.array([sigma_data1, sigma_data2])
 
 # Training
+end = "_P25E1"
 action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-# action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra="_T100")
-# action_cond_ode.save(extra="_T100")
-action_cond_ode.load(extra="_T100")
+# action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra=end, subdirect="mpc/")
+# action_cond_ode.save(subdirect="mpc/", extra=end)
+action_cond_ode.load(subdirect="mpc/", extra=end)
 
-noise_std = 0.05
-noise = np.ones(np.shape(obs_temp1))
-obs_temp1 = obs_temp1 + noise_std * noise
-obs_temp2 = obs_temp2 + noise_std * noise
-obs_temp_tensor1 = torch.FloatTensor(obs_temp1).to(device)
-obs_temp_tensor2 = torch.FloatTensor(obs_temp2).to(device)
-attr_test1 = obs_temp_tensor1
-attr_test2 = obs_temp_tensor2
-expert_data1 = expert_data1 * std + mean
-expert_data2 = expert_data2 * std + mean
-ref1 = np.mean(expert_data1, axis=0)
-ref2 = np.mean(expert_data2, axis=0)
-ref_agent1 = ref1[:, :]
-ref_agent2 = ref2[:, :]
-
-# Sampling (no plotting)
+# Sampling
 for i in range(100):
+    print("Planning Sample %s" % i)
     noise_std = 0.4
     initial1 = initial_point_up + noise_std * np.random.randn(*np.shape(initial_point_up))
     initial1 = (initial1 - mean) / std
@@ -159,75 +133,13 @@ for i in range(100):
     final2 = final_point_down + noise_std * np.random.randn(*np.shape(final_point_down))
     final2 = (final2 - mean) / std
 
-    cond1 = np.hstack([initial1, final1])
-    cond2 = np.hstack([initial2, final2])
-    cond_tensor1 = torch.tensor(cond1, dtype=torch.float32, device=device).unsqueeze(0)
-    cond_tensor2 = torch.tensor(cond2, dtype=torch.float32, device=device).unsqueeze(0)
+    planned_trajs = reactive_mpc_plan_nolf(action_cond_ode, [initial1, initial2], [final1, final2], segment_length=H, total_steps=T, n_implement=1)
 
-    traj_len = 100
-    n_samples = 1
+    planned_traj1 =  planned_trajs[0] * std + mean
 
-    sampled1 = action_cond_ode.sample(cond_tensor1, traj_len, n_samples, w=1., model_index = 0).cpu().detach().numpy()[0]
-    sampled2 = action_cond_ode.sample(cond_tensor2, traj_len, n_samples, w=1., model_index = 1).cpu().detach().numpy()[0]
-    sampled1 = sampled1 * std + mean
-    sampled2 = sampled2 * std + mean
+    np.save("sampled_trajs/mpc_P25E1/mpc_traj1_%s.npy" % i, planned_traj1)
 
-    np.save("data/T100/traj1_%s.npy" % i, sampled1)
-    np.save("data/T100/traj2_%s.npy" % i, sampled2)
+    planned_traj2 = planned_trajs[1] * std + mean
 
-# # Sampling (with plotting)
-# for i in range(10):
-#     attr_t1 = attr_test1[i*10].unsqueeze(0)
-#     attr_t2 = attr_test2[i*10].unsqueeze(0)
-#     attr_n1 = attr_t1.cpu().detach().numpy()[0]
-#     attr_n2 = attr_t2.cpu().detach().numpy()[0]
-
-#     traj_len = 100
-#     n_samples = 1
-
-#     sampled1 = action_cond_ode.sample(attr_t1, traj_len, n_samples, w=1., model_index = 0)
-#     sampled2 = action_cond_ode.sample(attr_t2, traj_len, n_samples, w=1., model_index = 1)
-
-#     sampled1 = sampled1.cpu().detach().numpy()
-#     sampled2 = sampled2.cpu().detach().numpy()
-#     sampled1 = sampled1 * std + mean
-#     sampled2 = sampled2 * std + mean
-#     test1 = np.mean(sampled1, axis=0)
-#     test2 = np.mean(sampled2, axis=0)
-#     test_agent1 = test1[:, :]
-#     test_agent2 = test2[:, :]
-
-#     sys.setrecursionlimit(10000)
-#     fast_frechet = FastDiscreteFrechetMatrix(euclidean)
-#     frechet1 = fast_frechet.distance(ref_agent1,test_agent1)
-#     frechet2 = fast_frechet.distance(ref_agent2,test_agent2)
-#     print(frechet1, frechet2)
-
-#     init_state1 = attr_n1[:2]
-#     final_state1 = attr_n1[2:]
-#     init_state2 = attr_n2[:2]
-#     final_state2 = attr_n2[2:]
-
-#     init_state1 = init_state1 * std + mean
-#     final_state1 = final_state1 * std + mean
-#     init_state2 = init_state2 * std + mean
-#     final_state2 = final_state2 * std + mean
-
-#     attr_n1 = np.concatenate([init_state1, final_state1])
-#     attr_n2 = np.concatenate([init_state2, final_state2])
-
-#     plt.figure(figsize=(20, 8))
-#     plt.scatter(expert_data1[:, 0, 0], expert_data1[:, 0, 1], color='green')
-#     plt.scatter(expert_data2[:, 0, 0], expert_data2[:, 0, 1], color='green')
-#     plt.scatter(expert_data1[:, -1, 0], expert_data1[:, -1, 1], color='green')
-#     plt.scatter(expert_data2[:, -1, 0], expert_data2[:, -1, 1], color='green')
-#     plt.plot(attr_n1[0], attr_n1[1], 'bo')
-#     plt.plot(attr_n2[0], attr_n2[1], 'o', color='orange')
-#     plt.plot(attr_n1[2], attr_n1[3], 'bo')
-#     plt.plot(attr_n2[2], attr_n2[3], 'o', color='orange')
-#     plt.plot(sampled1[0, :, 0], sampled1[0, :, 1], color='blue', label=f"Agent 1 Traj (Frechet: {frechet1:.2f})")
-#     plt.plot(sampled2[0, :, 0], sampled2[0, :, 1], color='orange', label=f"Agent 2 Traj (Frechet: {frechet2:.2f})")
-#     plt.legend(loc="upper right", fontsize=14)
-#     plt.savefig("figs/temp_T2/plot%s.png" % i)
-
+    np.save("sampled_trajs/mpc_P25E1/mpc_traj2_%s.npy" % i, planned_traj2)
 
