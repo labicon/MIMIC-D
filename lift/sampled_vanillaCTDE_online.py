@@ -10,10 +10,10 @@ import pickle as pkl
 import copy
 import robosuite as suite
 from robosuite.controllers import load_composite_controller_config
-from conditional_Action_DiT import Conditional_ODE
+from utils.conditional_Action_DiT import Conditional_ODE
 from env import TwoArmLiftRole
 from scipy.spatial.transform import Rotation as R
-from transform_utils import SE3_log_map, SE3_exp_map, quat_to_rot6d, rotvec_to_rot6d, rot6d_to_quat, rot6d_to_rotvec
+from utils.transform_utils import SE3_log_map, SE3_exp_map, quat_to_rot6d, rotvec_to_rot6d, rot6d_to_quat, rot6d_to_rotvec
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -257,7 +257,7 @@ class PolicyPlayer:
         obs = self.reset(seed)
 
         # Loading
-        expert_data = np.load("data/expert_actions_newslower_20.npy")
+        expert_data = np.load("data/expert_actions_20.npy")
         expert_data1 = expert_data[:, :, :7]
         expert_data2 = expert_data[:, :, 7:14]
         expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
@@ -277,7 +277,7 @@ class PolicyPlayer:
         obs_init1 = expert_data1[:, 0, :]
         obs_init2 = expert_data2[:, 0, :]
 
-        with open("data/pot_start_newslower_20.npy", "rb") as f:
+        with open("data/pot_start_20.npy", "rb") as f:
             obs = np.load(f)
 
         model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, state_dim = 7, action_dim = 7)
@@ -291,7 +291,7 @@ class PolicyPlayer:
     
         
 if __name__ == "__main__":
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller="utils/kinova.json")
 
     T = 700
     H = 25

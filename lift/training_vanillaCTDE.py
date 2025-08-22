@@ -4,9 +4,9 @@
 
 import torch
 import numpy as np
-from conditional_Action_DiT import Conditional_ODE
+from utils.conditional_Action_DiT import Conditional_ODE
 import matplotlib.pyplot as plt
-from discrete import *
+from utils.discrete import *
 import sys
 import pdb
 
@@ -45,7 +45,7 @@ H = 25 # horizon, length of each trajectory
 T = 700 # total time steps
 
 # Load expert data
-expert_data = np.load("data/expert_actions_newslower_20.npy")
+expert_data = np.load("data/expert_actions_20.npy")
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
 expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
@@ -78,7 +78,7 @@ sigma_data1 = actions1.std().item()
 sigma_data2 = actions2.std().item()
 
 # Prepare conditional vectors for training
-with open("data/pot_start_newslower_20.npy", "rb") as f:
+with open("data/pot_start_20.npy", "rb") as f:
     obs = np.load(f)
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
