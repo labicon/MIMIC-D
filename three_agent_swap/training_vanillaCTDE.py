@@ -6,7 +6,10 @@ from utils.discrete import *
 import sys
 import pdb
 import csv
-from utils.mpc_util import reactive_mpc_plan_vanillaCTDE
+import os
+seed = 0
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 def create_mpc_dataset(expert_data, planning_horizon=25):
     n_traj, horizon, state_dim = expert_data.shape
@@ -35,8 +38,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # Parameters
-n_gradient_steps = 100_000
-batch_size = 64
+n_gradient_steps = 50_000
+batch_size = 32
 # model_size = {
 #     "d_model": 512,      # twice the transformer width
 #     "n_heads": 8,        # more attention heads
@@ -60,41 +63,25 @@ expert_data_1 = np.load('data/expert_data1_400_traj_06_noise.npy')
 expert_data_2 = np.load('data/expert_data2_400_traj_06_noise.npy')
 expert_data_3 = np.load('data/expert_data3_400_traj_06_noise.npy')
 
-orig1 = expert_data_1
-orig2 = expert_data_2
-orig3 = expert_data_3
-print(expert_data_1.shape)
-print(expert_data_2.shape)
-print(expert_data_3.shape)
-
-orig1 = np.array(orig1)
-orig2 = np.array(orig2)
-orig3 = np.array(orig3)
-print(orig1.shape)
-print(orig2.shape)
-print(orig3.shape)
-
 expert_data1 = create_mpc_dataset(expert_data_1, planning_horizon=H)
 expert_data2 = create_mpc_dataset(expert_data_2, planning_horizon=H)
 expert_data3 = create_mpc_dataset(expert_data_3, planning_horizon=H)
-print(expert_data1.shape)
-print(expert_data2.shape)
-print(expert_data3.shape)
 
-
-combined_data = np.concatenate((expert_data1, expert_data2, expert_data3), axis=0)
 # mean = np.mean(combined_data, axis=(0,1))
 # std = np.std(combined_data, axis=(0,1))
 # np.save("data/mean_400demos_06noise.npy", mean)
 # np.save("data/std_400demos_06noise.npy", std)
 mean = np.load("data/mean_400demos_06noise.npy")
 std = np.load("data/std_400demos_06noise.npy")
-expert_data1 = (expert_data1 - mean) / std
-expert_data2 = (expert_data2 - mean) / std
-expert_data3 = (expert_data3 - mean) / std
-orig1 = (orig1 - mean) / std
-orig2 = (orig2 - mean) / std
-orig3 = (orig3 - mean) / std
+mean1 = np.mean(expert_data1, axis=(0,1))
+mean2 = np.mean(expert_data2, axis=(0,1))
+mean3 = np.mean(expert_data3, axis=(0,1))
+std1 = np.std(expert_data1, axis=(0,1))
+std2 = np.std(expert_data2, axis=(0,1))
+std3 = np.std(expert_data3, axis=(0,1))
+expert_data1 = (expert_data1 - mean1) / std1
+expert_data2 = (expert_data2 - mean2) / std2
+expert_data3 = (expert_data3 - mean3) / std3
 
 # Define environment
 class TwoUnicycle():
@@ -108,12 +95,9 @@ env = TwoUnicycle()
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
 obs_init3 = expert_data3[:, 0, :]
-obs_final1 = np.repeat(orig1[:, -1, :], repeats=100, axis=0)
-obs_final2 = np.repeat(orig2[:, -1, :], repeats=100, axis=0)
-obs_final3 = np.repeat(orig3[:, -1, :], repeats=100, axis=0)
-obs1 = np.hstack([obs_init1, obs_final1])
-obs2 = np.hstack([obs_init2, obs_final2])
-obs3 = np.hstack([obs_init3, obs_final3])
+obs1 = np.hstack([obs_init1])
+obs2 = np.hstack([obs_init2])
+obs3 = np.hstack([obs_init3])
 obs_temp1 = obs1
 obs_temp2 = obs2
 obs_temp3 = obs3
@@ -140,70 +124,108 @@ sigma_data3 = actions3.std().item()
 sig = np.array([sigma_data1, sigma_data2, sigma_data3])
 
 # Training
-end = "_P25E1_vanillaCTDE"
-action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2, attr_dim3], [sigma_data1, sigma_data2, sigma_data3], device=device, N=200, n_models = 3, **model_size)
+end = "_P25E1_400demos_06noise_separatenorm_nofinalpos_vanillaCTDE"
+action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2, attr_dim3], [sigma_data1, sigma_data2, sigma_data3], device=device, N=10, n_models = 3, **model_size)
 # action_cond_ode.train([actions1, actions2, actions3], [attr1, attr2, attr3], int(5*n_gradient_steps), batch_size, extra=end)
 # action_cond_ode.save(extra=end)
 action_cond_ode.load(extra=end)
 
 # Sampling
-try:
-    init1_list = np.load("init_final_pos/init1_list.npy")
-    init2_list = np.load("init_final_pos/init2_list.npy")
-    init3_list = np.load("init_final_pos/init3_list.npy")
-    final1_list = np.load("init_final_pos/final1_list.npy")
-    final2_list = np.load("init_final_pos/final2_list.npy")
-    final3_list = np.load("init_final_pos/final3_list.npy")
-except FileNotFoundError:
-    init1_list = None
 
-for i in range(100):
-    print("Planning Sample %s" % i)
-    noise_std = 0.6
-    threshold = 0.75
+def reactive_mpc_plan(
+        ode_model,
+        initial_states,
+        segment_length=25,
+        total_steps=100,
+        n_implement=5):
+    """
+    Plans a full trajectory by repeatedly sampling segments of length `segment_length`,
+    but ensures every agent’s conditioning in each segment uses the same snapshot of
+    all other agents at that segment’s start.
+    """
+    full_traj = []
+    current_states = initial_states.copy()      # shape: (n_agents, state_size)
+    n_agents = len(current_states)
 
-    while True:
-        if init1_list is not None:
-            initial1 = init1_list[i]
-            final1 = final1_list[i]
-            initial2 = init2_list[i]
-            final2 = final2_list[i]
-            initial3 = init3_list[i]
-            final3 = final3_list[i]
-            break
-        else:
+    for seg in range(total_steps // n_implement):
+
+        base_states = current_states.copy()     
+        segments = []
+
+        for i in range(n_agents):
+            cond = [ base_states[i] ]
+            cond = np.hstack(cond)
+            cond_tensor = torch.tensor(cond, dtype=torch.float32, device=ode_model.device).unsqueeze(0)
+
+            sampled = ode_model.sample(
+                attr=cond_tensor,
+                traj_len=segment_length,
+                n_samples=1,
+                w=1.0,
+                model_index=i
+            )
+            seg_i = sampled.cpu().numpy()[0]  # (segment_length, action_size)
+
+            if seg == 0:
+                take = seg_i[0:n_implement]
+                new_state = seg_i[n_implement-1]
+            else:
+                take = seg_i[1:n_implement+1]
+                new_state = seg_i[n_implement]
+            segments.append(take)
+            current_states[i] = new_state
+
+        full_traj.append(np.stack(segments, axis=0))  # (n_agents, n_implement, action_size)
+
+    # concat all segments along the time dimension
+    full_traj = np.concatenate(full_traj, axis=1)     # (n_agents, total_steps, action_size)
+    return full_traj
+
+# try:
+#     init1_list = np.load("init_final_pos/init1_list.npy")
+#     init2_list = np.load("init_final_pos/init2_list.npy")
+#     init3_list = np.load("init_final_pos/init3_list.npy")
+# except FileNotFoundError:
+#     init1_list = None
+
+for s in range(10):
+    seed = s * 10
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    path = f"sampled_trajs/vanillaCTDE_seed{seed}"
+    os.makedirs(path, exist_ok=True)
+
+    for i in range(100):
+        print("Planning Sample %s" % i)
+        noise_std = 0.6
+        threshold = 0.75
+
+        while True:
             initial1 = initial_point_1 + np.random.uniform(-noise_std, noise_std, size=(2,))    
-            final1 = final_point_1 + np.random.uniform(-noise_std, noise_std, size=(2,))
             initial2 = initial_point_2 + np.random.uniform(-noise_std, noise_std, size=(2,))
-            final2 = final_point_2 + np.random.uniform(-noise_std, noise_std, size=(2,))
             initial3 = initial_point_3 + np.random.uniform(-noise_std, noise_std, size=(2,))
-            final3 = final_point_3 + np.random.uniform(-noise_std, noise_std, size=(2,))
 
             d_init12 = np.linalg.norm(initial1 - initial2)
             d_init13 = np.linalg.norm(initial1 - initial3)
             d_init23 = np.linalg.norm(initial2 - initial3)
-            d_fin12 = np.linalg.norm(final1 - final2)
-            d_fin13 = np.linalg.norm(final1 - final3)
-            d_fin23 = np.linalg.norm(final2 - final3)
 
-            if (d_init12 > threshold and d_init13 > threshold and d_init23 > threshold and
-                d_fin12  > threshold and d_fin13  > threshold and d_fin23  > threshold):
+            if (d_init12 > threshold and d_init13 > threshold and d_init23 > threshold):
                 break
 
-    initial1 = (initial1 - mean) / std
-    final1 = (final1 - mean) / std
-    initial2 = (initial2 - mean) / std
-    final2 = (final2 - mean) / std
-    initial3 = (initial3 - mean) / std
-    final3 = (final3 - mean) / std
+        initial1 = (initial1 - mean1) / std1
+        initial2 = (initial2 - mean2) / std2
+        initial3 = (initial3 - mean3) / std3
 
-    planned_trajs = reactive_mpc_plan_vanillaCTDE(action_cond_ode, [initial1, initial2, initial3], [final1, final2, final3], segment_length=H, total_steps=T, n_implement=1)
+        planned_trajs = reactive_mpc_plan(action_cond_ode, [initial1, initial2, initial3], segment_length=H, total_steps=T, n_implement=1)
 
-    planned_traj1 =  planned_trajs[0] * std + mean
-    np.save("sampled_trajs/mpc_P25E1_vanillaCTDE/traj1_%s.npy" % i, planned_traj1)
+        planned_traj1 =  planned_trajs[0] * std1 + mean1
+        np.save(os.path.join(path, f"mpc_traj1_{i}.npy"), planned_traj1)
+        # np.save("sampled_trajs/mpc_P25E1_400demos_06demonoise_06samplenoise_200N_vettedinitfinal_separatenorm_nofinalpos_vanillaCTDE/traj1_%s.npy" % i, planned_traj1)
 
-    planned_traj2 = planned_trajs[1] * std + mean
-    np.save("sampled_trajs/mpc_P25E1_vanillaCTDE/traj2_%s.npy" % i, planned_traj2)
+        planned_traj2 = planned_trajs[1] * std2 + mean2
+        np.save(os.path.join(path, f"mpc_traj2_{i}.npy"), planned_traj2)
+        # np.save("sampled_trajs/mpc_P25E1_400demos_06demonoise_06samplenoise_200N_vettedinitfinal_separatenorm_nofinalpos_vanillaCTDE/traj2_%s.npy" % i, planned_traj2)
 
-    planned_traj3 = planned_trajs[2] * std + mean
-    np.save("sampled_trajs/mpc_P25E1_vanillaCTDE/traj3_%s.npy" % i, planned_traj3)
+        planned_traj3 = planned_trajs[2] * std3 + mean3
+        np.save(os.path.join(path, f"mpc_traj3_{i}.npy"), planned_traj3)
+        # np.save("sampled_trajs/mpc_P25E1_400demos_06demonoise_06samplenoise_200N_vettedinitfinal_separatenorm_nofinalpos_vanillaCTDE/traj3_%s.npy" % i, planned_traj3)
