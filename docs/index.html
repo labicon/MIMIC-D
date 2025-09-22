@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
+  <!-- Replace the content tag with appropriate information -->
+  <meta name="description" content="MIMIC-D: Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies">
+  <meta property="og:title" content="MIMIC-D"/>
+  <meta property="og:description" content="Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies"/>
+  <meta property="og:url" content="https://iconlab.negarmehr.com/MIMIC-D/"/>
+  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
+  <!-- <meta property="og:image" content="static/image/your_banner_image.png" />
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/> -->
+
+
+  <meta name="twitter:title" content="MIMIC-D">
+  <meta name="twitter:description" content="Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies">
+  <!-- Path to banner image, should be in the path listed below. Optimal dimensions are 1200X600-->
+  <!-- <meta name="twitter:image" content="static/images/your_twitter_banner_image.png">
+  <meta name="twitter:card" content="summary_large_image"> -->
+  <!-- Keywords for your paper to be indexed by-->
+  <meta name="keywords" content="Multi-Robot, Decentralized, Coordination, Robot Learning, Diffusion Models, Robotics">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+  <title>MIMIC-D</title>
+  <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+  rel="stylesheet">
+
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script src="static/js/bulma-carousel.min.js"></script>
+  <script src="static/js/bulma-slider.min.js"></script>
+  <script src="static/js/index.js"></script>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({ tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]} });
+	  MathJax.Hub.Config({ TeX: { equationNumbers: {autoNumber: "AMS"} } });
+  </script>
+  <script type="text/javascript" async
+    src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
+  </script>
+
+  <style>
+	.reference {
+	   margin-bottom: 3mm;
+	}
+  </style>
+</head>
+<body>
+
+
+<!--div style="float:left;"-->
+<div style="position: absolute;  left: 0;  top: 0;">
+	<a href="https://https://www.berkeley.edu/" target="_blank">
+	<img src="static/images/UC-Berkeley-Seal.png" alt="UC Berkeley" width="160"/>
+	</a>
+</div>
+	
+<!--div style="float:right;"-->
+<div style="position: absolute;  right: 0;  top: 0;">
+	<a href="https://iconlab.negarmehr.com/" target="_blank">
+	<img src="static/images/ICON_Lab.png" alt="ICON Lab" width="160"/>
+	</a>
+</div>
+
+
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">MIMIC-D: Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies</h1>
+						<div class="is-size-5 publication-authors"> <!-- Paper authors -->
+              <span class="author-block"><a href="https://dayiethandong.com/" target="_blank">Dayi Dong</a>,</span>
+	      			<span class="author-block"><a href="" target="_blank">Maulik Bhatt</a>,</span>
+              <span class="author-block"><a href="" target="_blank">Seoyeon Choi</a>,</span>
+              <span class="author-block"><a href="https://negarmehr.com/" target="_blank">Negar Mehr</a></span><br>
+							<!-- <a href="https://www.roboticsproceedings.org/rss21/p078.pdf" target="_blank">Robotics: Science and Systems (RSS) 2025</a> -->
+            </div>
+
+							<div class="column has-text-centered">
+								<div class="publication-links">
+										 <!-- Arxiv PDF link -->
+									<span class="link-block">
+										<a href="https://arxiv.org/pdf/2509.14159" target="_blank"
+										class="external-link button is-normal is-rounded is-dark">
+										<span class="icon">
+											<i class="fas fa-file-pdf"></i>
+										</span>
+										<span>Paper</span>
+									</a>
+								</span>
+
+							<!-- Github link -->
+							<span class="link-block">
+								<a href="" target="_blank"
+								class="external-link button is-normal is-rounded is-dark">
+								<span class="icon">
+									<i class="fab fa-github"></i>
+								</span>
+								<span>Code</span>
+							</a>
+						</span>
+
+						<!-- ArXiv abstract Link -->
+						<span class="link-block">
+							<a href="https://arxiv.org/abs/2509.14159" target="_blank"
+							class="external-link button is-normal is-rounded is-dark">
+							<span class="icon">
+								<i class="ai ai-arxiv"></i>
+							</span>
+							<span>arXiv</span>
+						</a>
+					</span>
+
+<!-- Blog Link -->
+						<!--span class="link-block">
+							<a href="https://jean-baptistebouvier.github.io/assets/blog_posts/policed_RL/" target="_blank"
+							class="external-link button is-normal is-rounded is-dark">
+							<span class="icon">
+		<i class="fas fa-scroll"></i>
+							</span>
+							<span>Blog</span>
+						</a>
+</span-->
+			    
+            </div>
+					</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+	
+<!-- Teaser video-->
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video poster="" id="tree" autoplay controls muted loop width="852" height="480">
+        <source src="videos/Hardware_comparison_480p.mp4" type="video/mp4">
+      </video>
+			<div class="columns is-centered has-text-centered">
+				<div class="column is-full">
+		      <div class="content has-text-justified">
+		        Unitree GO2 <strong>zero-shot</strong> hardware deployment of <strong>open-loop</strong> trajectories generated by a vanilla diffusion policy (left) and our DDAT model (right).<br>
+		        The vanilla diffusion policy fails at walking through the cones in open-loop. By accounting for the quadruped's dynamics our open-loop diffusion policy succeeds in following the corridor.
+					</div>
+				</div>
+			</div>
+    </div>
+  </div>
+</section>
+<!-- End teaser video -->
+
+<!-- Overview -->
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+			<div class="column is-full">
+				<h2 class="title is-3">Overview</h2>
+				<div class="content has-text-justified">
+					<ul>
+						<li><strong>DDAT</strong> is a diffusion model generating long-horizon open-loop <strong>dynamically feasible</strong> robot trajectories.</li>
+						<li>DDAT <strong>projects</strong> predicted <strong>trajectories</strong> to make them dynamically admissible during both training and inference.</li>
+						<li><strong>No more replanning!</strong> By producing accurate trajectories, our projections eliminate the need for diffusion models to continually replan.</li>
+					</ul>
+				</div>
+			</div>
+    </div>
+  </div>
+</section>
+
+
+<section class="section hero is-small">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+			<div class="column is-full">
+				<h2 class="title is-3">Challenge</h2>
+				<div class="content has-text-justified">
+					<ul>
+						<li>Diffusion models are <strong>stochastic</strong> by nature.</li>
+						<li>Thus, they <strong>cannot</strong> generate trajectories exactly satisfying the equations of motion of robots.</li>
+						<li>Robot dynamics can be written as
+							$$ s_{t+1} = f(s_t, a_t) $$
+						where $s_t$ is the current state and $a_t \in \mathcal A$ a feasible control action leading to the next state $s_{t+1}$.
+						</li>
+						<li>A generated trajectory $(s_0, s_1, ...)$ is <strong>dynamically feasible</strong> if and only if there exists $a_0, a_1, ... \in \mathcal A$ such that $s_1 = f(s_0, a_0)$, $s_2 = f(s_1, a_1)$, ...</li>
+						<li>This is equivalent to having each $s_{t+1}$ in the <strong>reachable set</strong> of $s_t$, i.e.,
+							$$ s_{t+1} \in \mathcal R(s_t) = \big\{	f(s_t, a) : a \in \mathcal{A} \big\}. $$
+						</li>
+						<li>Dynamics $f$ are <strong>black-box</strong> preventing calculation of reachable set $\mathcal R(s_t)$.</li>
+						<li>Almost all robots except robot arms are <strong>underactuated</strong> and hence have <strong>small low-dimensional reachable sets</strong> from which sampling is challenging, making it impossible to generate dynamically feasible trajectories with diffusion.</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+  </div>
+</section>
+
+
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-full">
+        <h2 class="title is-3">Our Idea</h2>
+
+				<div class="content has-text-justified">
+        	Training loop of DDAT
+        </div>
+        <img src="pictures/DDAT_scheme.svg" alt="DDAT illustration" style="height:200px !important; display:block !important; margin:auto !important;"/>
+				
+        <div class="content has-text-justified">
+          <ul>
+						<li>We propose to <strong>project</strong> the trajectories generated by our diffusion model to make them admissible during both training and inference.</li>
+						<li>Trajectory projections are <strong>auto-regressive</strong> since we need to reach first $s_1$, then $s_2$ and so on.</li>
+						<li>Since $f$ is a black-box, we cannot compute reachable sets and instead sample a <strong>polytopic under-approximation</strong> of the reachable sets as shown on the video. </li>
+          </ul>
+        </div>
+
+				<video poster="" id="tree" autoplay controls muted loop width="1920" height="1080">
+        	<source src="videos/Projection_animation.mp4" type="video/mp4">
+				</video>
+				
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section class="section hero is-small">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+			<div class="column is-full">
+				<h2 class="title is-3">Our Approach</h2>
+				<div class="content has-text-justified">
+					We implemented four projection algorithms divided in two categories to make trajectories dynamically feasible.
+					 
+					<ul>
+						<li>Given $s_0$ the diffusion model generates $s_1, s_2, ...$ and projections make $s_{t+1}$ reachable from $s_t$.
+							<ul>
+								<li><strong>Greedy state projection</strong> chronologically projects a sequence of states onto the approximated reachable sets $\mathcal{C}$ as shown on the video above:
+									$$s_{t+1} \leftarrow \mathcal{P}(s_t, s_{t+1}) = \arg \min \big\{ ||s_{t+1} - c|| : c \in \mathcal{C} \}.$$
+								</li>
+								<li><strong>Reference state projection</strong> uses a reference trajectory to guide the projections and prevent long-horizon divergence due to myopic greedy projections:
+									$$s_{t+1} \leftarrow \mathcal{P}^\text{ref}(s_t, s_{t+1}, s^{ref}_{t+1}) = \arg \min \big\{ ||s_{t+1} - c|| + \lambda ||s^{ref}_{t+1} - c|| : c \in \mathcal{C} \}.$$
+								</li>
+							</ul>
+						</li>
+						<li>Given $s_0$ the diffusion model generates $s_1, s_2, ...$ and $a_0, a_1, ...$ while projections find $a_t$ to reach $s_{t+1}$ from $s_t$.
+							<ul>
+								<li><strong>Action projection</strong> replaces the next state by the state obtained after applying $a_t$:
+									$$s_{t+1} \leftarrow \mathcal{P}^\text{A}(s_t, a_t) = f(s_t, a_t). $$ 
+								</li>
+								<li><strong>State-Action projection</strong> calculates a feedback correction term to reach a next state closer to the prediction:
+									$$ s_{t+1} \leftarrow \mathcal{P}^\text{SA}(s_t, a_t, s_{t+1}) = f\big(s_t, a_t + \delta a_t \big) \quad \text{where} \quad \delta a_t := \pi_\theta\big( s_{t+1} - f(s_t, a_t) \big). $$ 
+								</li>
+							</ul>
+						</li>
+					</ul>
+	      </div>
+			</div>
+    </div>
+  </div>
+</section>
+
+
+
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Experiments</h2>
+				<div class="content has-text-justified">
+					We implemented DDAT on six underactuated robots simulated in MuJoCo:
+					<ul>
+						<li><strong>Hopper</strong>: 12 states, 3 actions,</li>
+						<li><strong>Walker</strong>: 18 states, 6 actions,</li>
+						<li><strong>HalfCheetah</strong>: 18 states, 6 actions,</li>
+						<li><strong>Quadcopter</strong>: 17 states, 4 actions,</li>
+						<li><strong>Unitree GO1 and GO2</strong>: 37 states, 12 actions.</li>
+					</ul>
+				</div>
+				<video poster="" id="tree" autoplay controls muted loop width="1280" height="720">
+					<source src="videos/All_env.mp4" type="video/mp4">
+				</video>
+				<div class="content has-text-justified">
+					We deployed DDAT on two real robots: the <strong>Unitree GO1 and GO2</strong>.
+				</div>
+				<video poster="" id="tree" autoplay controls muted loop width="1280" height="720">
+					<source src="videos/All_hardware.mp4" type="video/mp4">
+				</video>
+      </div>
+    </div>
+  </div>
+</section>
+	
+
+  
+<!-- Image carousel -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3">Projections make trajectories admissible and better</h2>
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item">
+	        <img src="pictures/Hopper_SAE_500.svg" alt="Statewise admissibility error" style="height:400px !important; display:block !important; margin:auto !important;"/>
+        	<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Statewise admissibility error over 500 Hopper trajectories. <br>
+						The error <strong><span style="color:blue;">without projections</span></strong> is much larger than when using <br>
+						<strong><span style="color:DarkOrange;">projections at inference</span></strong> or
+						<strong><span style="color:green;">training with projections $\mathcal{P}^\text{ref}$</span></strong>. <br>
+						All diffusion models generate only state trajectories.
+					</h6>
+	      </div>
+	      <div class="item">
+        	<img src="pictures/Hopper_CAE_500.svg" alt="Cumulative admissibility error" style="height:400px !important; display:block !important; margin:auto !important;"/>
+        	<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Cumulative admissibility error over 500 Hopper trajectories. <br>
+						The error <strong><span style="color:blue;">without projections</span></strong> is much larger than when using <br>
+						<strong><span style="color:DarkOrange;">projections at inference</span></strong> or
+						<strong><span style="color:green;">training with projections $\mathcal{P}^\text{ref}$</span></strong>. <br>
+						All diffusion models generate only state trajectories.
+		      </h6>
+	      </div>
+	      <div class="item">
+	        <img src="pictures/Hopper_falling_ratio_500.svg" alt="Falling ratios" style="height:400px !important; display:block !important; margin:auto !important;"/>
+	        <h5 class="subtitle has-text-centered" style="font-size: 16px;">
+						Ratios of open-loop Hopper trajectories having fallen at a given timestep. <br>
+						The trajectories <strong><span style="color:blue;">without projections</span></strong> and those with
+						<strong><span style="color:DarkOrange;">projections at inference</span></strong> <br>
+						start to fall significantly earlier than those
+						<strong><span style="color:green;">training with projections $\mathcal{P}^\text{ref}$</span></strong>. <br>
+						All diffusion models generate only state trajectories.
+					</h5>
+      	</div>
+	     	<div class="item">
+	     		<img src="pictures/Walker_SAE_400.svg" alt="Statewise admissibility error" style="height:400px !important; display:block !important; margin:auto !important;"/>
+	      	<h6 class="subtitle has-text-centered" style="font-size: 14px !important;">
+						Statewise admissibility error over 400 Walker trajectories. <br>
+						The error <strong><span style="color:blue;">without projections</span></strong> is much larger than when using
+						<strong><span style="color:DarkOrange;">projections at inference</span></strong>. <br>
+						Our model <strong><span style="color:green;">trained with projections $\mathcal{P}^\text{SA}$</span></strong> has no error. <br>
+						All diffusion models generate states and actions.
+					</h6>
+		    </div>
+		    <div class="item">
+		    	<img src="pictures/Walker_CAE_400.svg" alt="Cumulative admissibility error" style="height:400px !important; display:block !important; margin:auto !important;"/>
+				 	<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Cumulative admissibility error over 400 Walker trajectories. <br>
+						The error <strong><span style="color:blue;">without projections</span></strong> is much larger than when using
+						<strong><span style="color:DarkOrange;">projections at inference</span></strong>. <br>
+						Our model <strong><span style="color:green;">trained with projections $\mathcal{P}^\text{SA}$</span></strong> has no error. <br>
+						All diffusion models generate states and actions.
+		      </h6>
+		    </div>
+		    <div class="item">
+	      <img src="pictures/Walker_falling_ratio_400.svg" alt="Falling ratios" style="height:400px !important; display:block !important; margin:auto !important;"/>
+	        <h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Ratios of open-loop Walker trajectories having fallen at a given timestep. <br>
+						The trajectories <strong><span style="color:blue;">without projections</span></strong> and those with
+						<strong><span style="color:DarkOrange;">projections at inference</span></strong> <br>
+							start to fall significantly earlier than those
+						<strong><span style="color:green;">training with projections $\mathcal{P}^\text{SA}$</span></strong>. <br>
+						All diffusion models generate states and actions.
+	      	</h6>
+	      </div>
+			</div>
+	  </div>
+	</div>
+</section>
+<!-- End image carousel -->
+
+
+
+
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video poster="" id="tree" autoplay controls muted loop width="337" height="600" style="margin: auto;!important">
+        <source src="videos/GO2_comparison.mp4" type="video/mp4">
+      </video>
+      <div class="columns is-centered has-text-centered">
+				<div class="column is-full">
+		      <div class="content has-text-justified">
+		        Unitree GO2 <strong>open-loop</strong> trajectories tasked with going straight. <br>
+						Both models without projections deviate from walking straight, <br>
+						whereas our DDAT model follows prefectly the command.
+					</div>
+				</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+	
+
+<!-- Image carousel -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container">
+	    <h2 class="title is-3">Projections should only occur at low noise levels</h2>
+			<div class="content has-text-justified">
+				<p>
+					All diffusion models generate state-action trajectories with projections <strong>starting</strong> from either the
+					<strong><span style="color:blue;">beginning</span></strong> of inference, i.e., projecting at all noise levels, or <strong>starting</strong>
+					<strong><span style="color:green;">mid</span></strong>-inference, or project only once
+					<strong><span style="color:DarkOrange;">after</span></strong> inference.
+				</p>
+			</div>
+	    
+	    <div id="results-carousel" class="carousel results-carousel">
+	      <div class="item">
+	      	<img src="pictures/Hopper_SA_Q2_SAE_500.svg" alt="Statewise admissibility error" style="height:400px !important; display:block !important; margin:auto !important;"/>
+			   	<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Statewise admissibility error over 500 Hopper trajectories. <br>
+						The admissibility error is similar between models no matter when projections start, <br>
+						because they all perform a projection at the end of inference.
+					</h6>
+	      </div>
+	      <div class="item">
+	        <img src="pictures/Hopper_SA_Q2_falling_ratio_500.svg" alt="Falling ratios" style="height:400px !important; display:block !important; margin:auto !important;"/>
+		      <h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Ratios of open-loop Hopper trajectories having fallen at a given timestep. <br>
+						The trajectories projecting at <strong><span style="color:blue;">high</span></strong> noise levels fall significantly earlier than those
+						projecting at <strong><span style="color:green;">small</span></strong> and 
+						<strong><span style="color:DarkOrange;">zero</span></strong> noise levels.
+					</h6>
+				</div>
+	      <div class="item">
+			    <img src="pictures/Quad_100trajs_Q2.svg" alt="Statewise admissibility error" style="height:400px !important; display:block !important; margin:auto !important;"/>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Quadcopter trajectories tasked with slaloming between <strong><span style="color:red;">obstacles</span></strong> following the dashed line. <br>
+						Trajectories generated with projections at <strong><span style="color:blue;">high</span></strong> noise levels are incapable of performing the task, <br>
+						while trajectories with projections at <strong><span style="color:green;">small</span></strong> and
+						<strong><span style="color:DarkOrange;">zero</span></strong> noise levels succeed.
+					</h6>
+  			</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+
+<!-- Presentation video-->
+<!--section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+        <h2 class="title is-3">Video Presentation given at RSS 2024</h2>
+          <div class="publication-video">
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/xMWSqjRrcVc?si=Puj4cTJtLFcLGyH1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"   referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section-->
+	
+<!-- Youtube video -->
+<!-- <section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container">
+      <!- - Paper video. - ->
+      <h2 class="title is-3">Video Presentation</h2>
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          
+          <div class="publication-video">
+            <!- - Youtube embed code here - ->
+            <iframe src="https://www.youtube.com/embed/JkaxUblCGz0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section> -->
+<!-- End youtube video -->
+
+
+<!-- Video carousel -->
+<section class="hero is-light">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3">Generating quadcopter trajectories</h2>
+			<div class="content has-text-justified">
+				<p>
+		      Objective: slalom between <strong><span style="color:red;">obstacles</span></strong> to reach the <strong><span style="color:green;">target</span></strong>.
+		    </p>
+		  </div>
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item item-video1">
+          <video poster="" id="video1" autoplay controls muted loop width="1280" height="720">
+            <source src="videos/S_sampled_ID_above.mp4" type="video/mp4">
+					</video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Model generating state trajectories without projections. <br>
+						The sampled trajectory would succeed if it was feasible, <br>
+						but <strong><span style="color:DarkOrange;">inverse dynamics</span></strong> shows how far off the trajectory actually is.
+     			</h6>
+        </div>
+        <div class="item item-video2">
+          <video poster="" id="video2" autoplay controls muted loop width="1280" height="720">
+            <source src="videos/S_inference_ID_above.mp4" type="video/mp4">
+          </video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Model generating state trajectories with projections only at inference. <br>
+						The sampled trajectory is close to feasible, but not sufficiently to<br>
+						prevent the <strong><span style="color:DarkOrange;">inverse dynamics</span></strong> from crashing.
+      		</h6>
+        </div>
+        <div class="item item-video3">
+          <video poster="" id="video3" autoplay controls muted loop width="1280" height="720">\
+            <source src="videos/S_ref_proj_above.mp4" type="video/mp4">
+          </video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+					  Model generating state trajectories trained with reference projections. <br>
+					  The sampled trajectory is very close to the <strong><span style="color:DarkOrange;">inverse dynamics</span></strong> and both succeed.
+	      	</h6>
+        </div>
+			  <div class="item item-video4">
+          <video poster="" id="video4" autoplay controls muted loop width="1280" height="720">\
+            <source src="videos/S_ref_proj_track.mp4" type="video/mp4">
+          </video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Model generating state trajectories trained with reference projections. <br>
+						The sampled trajectory slaloms between the obstacles and reaches the target.
+     			</h6>
+        </div>
+		 		<div class="item item-video5">
+          <video poster="" id="video5" autoplay controls muted loop width="1280" height="720">
+            <source src="videos/SA_sampled_ol_above.mp4" type="video/mp4">
+					</video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Model generating states and actions without projections. <br>
+						The sampled trajectory would succeed if it was feasible, <br>
+						but the <strong><span style="color:DarkOrange;">open-loop</span></strong> shows how far off the trajectory actually is.
+					</h6>
+        </div>
+        <div class="item item-video6">
+          <video poster="" id="video6" autoplay controls muted loop width="1280" height="720">
+            <source src="videos/SA_inference_proj_above.mp4" type="video/mp4">
+          </video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Model generating states and actions with projections only at inference. <br>
+						The sampled trajectory flies through the obstacle,<br>
+						while the <strong><span style="color:DarkOrange;">open-loop</span></strong> diverges.
+					</h6>
+        </div>
+        <div class="item item-video7">
+          <video poster="" id="video7" autoplay controls muted loop width="1280" height="720">\
+            <source src="videos/SA_proj_sampled_ol_above.mp4" type="video/mp4">
+          </video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+						Model generating states and actions trained with SA-projections. <br>
+						The sampled trajectory is admissible as it matches its <br>
+						<strong><span style="color:DarkOrange;">open-loop</span></strong> realisation and both succeed.
+	     	  </h6>
+        </div>
+				<div class="item item-video8">
+          <video poster="" id="video8" autoplay controls muted loop width="1280" height="720">\
+            <source src="videos/SA_proj_ol_track.mp4" type="video/mp4">
+          </video>
+					<h6 class="subtitle has-text-centered" style="font-size: 16px;">
+					  Model generating states and actions trained with reference projections. <br>
+					  The sampled trajectory slaloms between the obstacles and reaches the target.
+					</h6>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- End video carousel -->
+
+
+
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video poster="" id="tree" autoplay controls muted loop width="360" height="450" style="margin: auto;!important">
+        <source src="videos/Hoppers_comparison.mp4" type="video/mp4">
+      </video>
+      <div class="columns is-centered has-text-centered">
+				<div class="column is-full">
+		      <div class="content has-text-justified">
+        		MuJoCo Hopper <strong>open-loop</strong> trajectories. <br>
+						Without projections the Hopper fall earlier than with our projections.
+					</div>
+				</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Paper poster -->
+<section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title">Poster</h2>
+      <iframe  src="poster.pdf" width="100%" height="1100"></iframe>
+      </div>
+    </div>
+  </section>
+<!--End paper poster -->
+
+
+<!--BibTex citation -->
+  <section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+      <h2 class="title">BibTeX</h2>
+      <!-- <pre><code>@inproceedings{bouvier2025ddat,
+        title = {DDAT: Diffusion Policies Enforcing Dynamically Admissible Robot Trajectories},
+        author = {Bouvier, Jean-Baptiste and Ryu, Kanghyun and Nagpal, Kartik and Liao, Qiayuan and Sreenath, Koushil and Mehr, Negar},
+        booktitle = {Robotics: Science and Systems (RSS)},
+        year = {2025}
+      }</code></pre> -->
+    </div>
+</section>
+<!--End BibTex citation -->
+
+
+	
+	
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <!-- <p>
+            This work was supported by the Google BAIR Commons Project and the National Science Foundation, under grants DGE-2146752, ECCS-2145134, CAREER Award, CNS-2423130, and CCF-2423131. 
+          </p> -->
+          <p>
+            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+            <br> This website is licensed under a <a rel="license"  href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
