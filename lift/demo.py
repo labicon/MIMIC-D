@@ -10,7 +10,7 @@ import robosuite as suite
 from robosuite.controllers import load_composite_controller_config
 from env import TwoArmLiftRole
 from scipy.spatial.transform import Rotation as R
-from transform_utils import SE3_log_map, SE3_exp_map
+from utils.transform_utils import SE3_log_map, SE3_exp_map
 
 class PolicyPlayer:
     def __init__ (self, env, render = False):

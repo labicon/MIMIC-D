@@ -45,7 +45,7 @@ H = 25 # horizon, length of each trajectory
 T = 950 # total time steps
 
 # Load expert data
-expert_data = np.load("data/expert_actions_newslower_100.npy")
+expert_data = np.load("data/expert_actions_newslowerer_100.npy")
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
 expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
@@ -78,13 +78,13 @@ sigma_data1 = actions1.std().item()
 sigma_data2 = actions2.std().item()
 
 # Prepare conditional vectors for training
-with open("data/pot_start_newslower_100.npy", "rb") as f:
+with open("data/pot_start_newslowerer_100.npy", "rb") as f:
     obs = np.load(f)
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
 obs = np.repeat(obs, repeats=T, axis=0)
-obs1 = np.hstack([obs_init1, obs])
-obs2 = np.hstack([obs_init2, obs])
+obs1 = np.hstack([obs_init1, obs_init2, obs])
+obs2 = np.hstack([obs_init2, obs_init1, obs])
 obs1 = torch.FloatTensor(obs1).to(device)
 obs2 = torch.FloatTensor(obs2).to(device)
 attr1 = obs1
@@ -93,7 +93,7 @@ attr_dim1 = attr1.shape[1]
 attr_dim2 = attr2.shape[1]
 
 # Training
-end="_lift_mpc_P25E1_vanillaCTDE_100traj"
+end="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf_sitedata_newslowerer_rotvec_separatenorm_100traj"
 action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
 action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra=end, endpoint_loss=False)
 action_cond_ode.save(extra=end)
