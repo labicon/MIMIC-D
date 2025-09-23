@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Nov 17 19:24:01 2024
-
-@author: Jean-Baptiste
-
 Taken from https://github.com/ZibinDong/AlignDiff-ICLR2024/blob/main/utils/dit_utils.py
 
 Prediction of the states only
