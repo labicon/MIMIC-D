@@ -186,12 +186,6 @@ def reactive_mpc_plan(
     full_traj = np.concatenate(full_traj, axis=1)     # (n_agents, total_steps, action_size)
     return full_traj
 
-try:
-    init1_list = np.load("init_final_pos/init1_list.npy")
-    init2_list = np.load("init_final_pos/init2_list.npy")
-    init3_list = np.load("init_final_pos/init3_list.npy")
-except FileNotFoundError:
-    init1_list = None
 
 for s in range(10):
     seed = s * 10
