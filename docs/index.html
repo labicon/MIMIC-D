@@ -219,7 +219,7 @@
 				<div class="content has-text-justified">
         	Our key idea is to use <strong>diffusion models</strong> to capture multi-modality in expert demonstrations.
         </div>
-        <img src="pictures/DDAT_scheme.svg" alt="DDAT illustration" style="height:200px !important; display:block !important; margin:auto !important;"/>
+        <!-- <img src="pictures/DDAT_scheme.svg" alt="DDAT illustration" style="height:200px !important; display:block !important; margin:auto !important;"/>
 				
         <div class="content has-text-justified">
           <ul>
@@ -232,7 +232,7 @@
 				<video poster="" id="tree" autoplay controls muted loop width="1920" height="1080">
         	<source src="videos/Projection_animation.mp4" type="video/mp4">
 				</video>
-				
+				 -->
       </div>
     </div>
   </div>
@@ -256,39 +256,78 @@
 						</li>
 					</ul>
 	      </div>
+		  <!-- Architecture Image -->
+		  <div class="has-text-centered" style="margin-top: 1.5rem;">
+			<img src="pictures/architecture.png" alt="MIMIC-D Architecture" style="max-height:400px; display:block; margin:auto;">
+		  </div>
 			</div>
     </div>
   </div>
 </section>
 
 <section class="section hero is-light">
-  <div class="container is-max-desktop">
-    <div class="columns is-centered has-text-centered">
-      <div class="column is-four-fifths">
-        <h2 class="title is-3">Experiments</h2>
-				<div class="content has-text-justified">
-					We implemented DDAT on six underactuated robots simulated in MuJoCo:
-					<ul>
-						<li><strong>Hopper</strong>: 12 states, 3 actions,</li>
-						<li><strong>Walker</strong>: 18 states, 6 actions,</li>
-						<li><strong>HalfCheetah</strong>: 18 states, 6 actions,</li>
-						<li><strong>Quadcopter</strong>: 17 states, 4 actions,</li>
-						<li><strong>Unitree GO1 and GO2</strong>: 37 states, 12 actions.</li>
-					</ul>
-				</div>
-				<video poster="" id="tree" autoplay controls muted loop width="1280" height="720">
-					<source src="videos/All_env.mp4" type="video/mp4">
-				</video>
-				<div class="content has-text-justified">
-					We deployed DDAT on two real robots: the <strong>Unitree GO1 and GO2</strong>.
-				</div>
-				<video poster="" id="tree" autoplay controls muted loop width="1280" height="720">
-					<source src="videos/All_hardware.mp4" type="video/mp4">
-				</video>
-      </div>
-    </div>
-  </div>
-</section>
+	<div class="container is-max-desktop">
+	  <div class="columns is-centered has-text-centered">
+		<div class="column is-four-fifths">
+		  <h2 class="title is-3">Simulation Experiments</h2>
+				  <div class="content has-text-justified">
+					  We employed MIMIC-D on three different simulation scenariors:
+					  <ul>
+						  <li><strong>Two-Agent Swap</strong>: Two agents are trying to swap positions with one another while avoiding a central obstacle. This environment involves six possible modes.</li>
+						  <img src="pictures/swap_env_demo_2.png" alt="Swap Demo" style="height:200px !important; display:block !important; margin:auto !important;"/>
+						  <li><strong>Three-Agent Road Crossing</strong>: Three agents are trying to avoid one another while on their way to their respective goal locations. </li>
+						  <img src="pictures/road_env_demo_2.png" alt="Road Demo" style="height:200px !important; display:block !important; margin:auto !important;"/>
+						  <li><strong>Two-Arm Lift</strong>: The two Kinova3 arms collaborate to lift the pot and transfer it to the other side while avoiding the obstacle (red box).</li>
+						  <div class="columns is-centered" style="margin-top: 1rem;">
+							<div class="column is-half has-text-centered">
+							  <video autoplay loop muted playsinline style="max-height:250px;">
+								<source src="videos/two_arm_lift_sim_left.mp4" type="video/mp4">
+								Your browser does not support the video tag.
+							  </video>
+							</div>
+							<div class="column is-half has-text-centered">
+							  <video autoplay loop muted playsinline style="max-height:250px;">
+								<source src="videos/two_arm_lift_sim_right.mp4" type="video/mp4">
+								Your browser does not support the video tag.
+							  </video>
+							</div>
+						  </div>
+						</ul>
+				  </div>
+		</div>
+	  </div>
+	</div>
+  </section>
+
+  <section class="section hero is-light">
+	<div class="container is-max-desktop">
+	  <div class="columns is-centered has-text-centered">
+		<div class="column is-four-fifths">
+		  <h2 class="title is-3">Hardware Experiments</h2>
+		  <div class="content has-text-justified">
+			To demonstrate MIMIC-D in high-dimensional real hardware, we also perform the Two-Arm Lift task in the real world.
+		  </div>
+  
+		  <div class="columns is-centered" style="margin-top: 1rem;">
+			<div class="column is-half has-text-centered">
+			  <video autoplay loop muted playsinline style="max-height:250px;">
+				<source src="videos/left_mode_hardware_16x.mp4" type="video/mp4">
+				Your browser does not support the video tag.
+			  </video>
+			</div>
+			<div class="column is-half has-text-centered">
+			  <video autoplay loop muted playsinline style="max-height:250px;">
+				<source src="videos/right_mode_hardware_16x.mp4" type="video/mp4">
+				Your browser does not support the video tag.
+			  </video>
+			</div>
+		  </div>
+  
+		</div>
+	  </div>
+	</div>
+  </section>
+  
 	
 
   
