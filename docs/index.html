@@ -83,8 +83,8 @@
             <h1 class="title is-1 publication-title">MIMIC-D: Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies</h1>
 						<div class="is-size-5 publication-authors"> <!-- Paper authors -->
               <span class="author-block"><a href="https://dayiethandong.com/" target="_blank">Dayi Dong</a>,</span>
-	      			<span class="author-block"><a href="" target="_blank">Maulik Bhatt</a>,</span>
-              <span class="author-block"><a href="" target="_blank">Seoyeon Choi</a>,</span>
+	      			<span class="author-block"><a href="https://maulikbhatt.web.illinois.edu" target="_blank">Maulik Bhatt</a>,</span>
+              <span class="author-block"><a href="https://sites.google.com/yonsei.ac.kr/seoyeon-choi-home/" target="_blank">Seoyeon Choi</a>,</span>
               <span class="author-block"><a href="https://negarmehr.com/" target="_blank">Negar Mehr</a></span><br>
 							<!-- <a href="https://www.roboticsproceedings.org/rss21/p078.pdf" target="_blank">Robotics: Science and Systems (RSS) 2025</a> -->
             </div>
@@ -276,11 +276,11 @@
 				  <div class="content has-text-justified">
 					  We employed MIMIC-D on three different simulation scenariors:
 					  <ul>
-						  <li><strong>Two-Agent Swap</strong>: Two agents are trying to swap positions with one another while avoiding a central obstacle. This environment involves six possible modes.</li>
+						  <li><strong>Two-Agent Swap</strong>: Two agents are trying to swap positions with one another while avoiding a central obstacle. This environment involves six possible modes as shown below.</li>
 						  <img src="pictures/swap_env_demo_2.png" alt="Swap Demo" style="height:200px !important; display:block !important; margin:auto !important;"/>
-						  <li><strong>Three-Agent Road Crossing</strong>: Three agents are trying to avoid one another while on their way to their respective goal locations. </li>
+						  <li><strong>Three-Agent Road Crossing</strong>: Three agents are trying to avoid one another while on their way to their respective goal locations. As shown below, this can be achieved in enumerous ways.</li>
 						  <img src="pictures/road_env_demo_2.png" alt="Road Demo" style="height:200px !important; display:block !important; margin:auto !important;"/>
-						  <li><strong>Two-Arm Lift</strong>: The two Kinova3 arms collaborate to lift the pot and transfer it to the other side while avoiding the obstacle (red box).</li>
+						  <li><strong>Two-Arm Lift</strong>: The two Kinova3 arms collaborate to lift the pot and transfer it to the other side while avoiding the obstacle (red box). This challenging high dimensional task has two modes on which both the agents need to coordinate.</li>
 						  <div class="columns is-centered" style="margin-top: 1rem;">
 							<div class="column is-half has-text-centered">
 							  <video autoplay loop muted playsinline style="max-height:250px;">
@@ -299,7 +299,7 @@
 				  </div>
 
 				  <div class="content has-text-justified">
-					  The results of these simulation results are summarized in the following plots:
+					  The results of these simulation results are summarized in the following plots. As it can be seen MIMIC-D achieves higher coordination amongst agents and significantly less collisions and task failures.
 					  <ul>
 						  <!-- <li><strong>Two-Agent Swap</strong>: Two agents are trying to swap positions with one another while avoiding a central obstacle. This environment involves six possible modes.</li>
 						  <img src="pictures/swap_env_demo_2.png" alt="Swap Demo" style="height:200px !important; display:block !important; margin:auto !important;"/>
