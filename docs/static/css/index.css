@@ -134,4 +134,45 @@ body {
 }
 
 
+/* Header logos: keep them at the edges on desktop, scale down + make room on mobile */
+.logo-left, .logo-right {
+  position: absolute;
+  top: 0.5rem;
+  z-index: 5;
+}
+.logo-left  { left: 0.75rem; }
+.logo-right { right: 0.75rem; }
 
+.logo-left img, .logo-right img {
+  height: 64px;
+  width: auto;
+}
+
+/* Ensure the hero title has enough top padding so it doesn't overlap the logos */
+.hero .hero-body .publication-title {
+  margin-top: 3.5rem;
+}
+
+/* Mobile tweaks */
+@media (max-width: 768px) {
+  .logo-left img, .logo-right img {
+    height: 44px;
+  }
+  .hero .hero-body .publication-title {
+    /* push the title down a bit more on small screens */
+    margin-top: 4.25rem;
+    font-size: 1.6rem;      /* tighten title size on phones */
+    line-height: 1.25;
+  }
+}
+
+/* Larger Berkeley seal on desktop only */
+@media (min-width: 1024px) {
+  .logo-left img { 
+    height: 100px;   /* was 64px */
+  }
+  /* If the title feels a bit tight after enlarging, nudge it down slightly */
+  .hero .hero-body .publication-title {
+    margin-top: 4rem; /* was 3.5rem */
+  }
+}
