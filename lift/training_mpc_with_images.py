@@ -5,7 +5,6 @@ import torch
 import numpy as np
 from conditional_Action_DiT import Conditional_ODE
 import matplotlib.pyplot as plt
-from discrete import *
 import sys
 import pdb
 
