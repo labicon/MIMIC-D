@@ -386,7 +386,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # create env (match your BC code call)
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller="utils/kinova.json")
 
     env = TwoArmLiftRole(
         robots=["Kinova3", "Kinova3"],

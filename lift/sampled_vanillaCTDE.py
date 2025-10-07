@@ -308,7 +308,7 @@ class PolicyPlayer:
     
         
 if __name__ == "__main__":
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller="utils/kinova.json")
 
     T = 700
     H = 25

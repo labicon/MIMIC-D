@@ -2,14 +2,22 @@
 
 In this project we introduce **MIMIC-D**, a CTDE (Centralized Training, Decentralized Execution) framework that learns **decentralized diffusion policies** from multi-agent expert demonstrations to recover diverse, coordinated behaviors without explicit inter-agent communication.
 
-[Paper](<https://arxiv.org/abs/2509.14159>)          [Website](<add-project-website-here>)
+[Paper](<https://arxiv.org/abs/2509.14159>)          
+[Website](<https://iconlab.negarmehr.com/MIMIC-D/>)
 
 
 ## Overview
 
 Many real-world multi-agent tasks have **multiple valid coordination modes** (e.g., pass-left vs pass-right) and cannot assume reliable centralized planners or explicit communication. MIMIC-D trains policies jointly with full information, then **executes with only local observations**, enabling **implicit coordination** while preserving **multi-modality** in the learned behaviors. We validate MIMIC-D in multiple simulation environments and on a **bimanual hardware** setup with heterogeneous arms (Kinova3 + xArm7).
+<p align="center">
+  <video width="600" controls muted playsinline preload="metadata">
+    <source src="docs/videos/MIMIC-D.mp4" type="video/mp4" />
+    Your browser doesn’t support HTML5 video.
+  </video>
+</p>
 
-![Teaser figure showcasing both modes & decentralized execution](docs/figs/teaser_mimicd.png)
+
+
 
 ## Project Organization
 
@@ -33,16 +41,15 @@ Many real-world multi-agent tasks have **multiple valid coordination modes** (e.
 
 If you use MIMIC-D, please cite:
 
-TBD
-
-<!-- ```bibtex
-@inproceedings{mimicd_icra2026,
-  title     = {MIMIC-D: Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies},
-  author    = {<add-author-list-here>},
-  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
-  year      = {2026}
+```bibtex
+@article{dong2025mimic,
+  title={MIMIC-D: Multi-modal Imitation for MultI-agent Coordination with Decentralized Diffusion Policies},
+  author={Dong, Dayi and Bhatt, Maulik and Choi, Seoyeon and Mehr, Negar},
+  journal={arXiv preprint arXiv:2509.14159},
+  year={2025}
 }
-``` -->
+```
+
 
 ## Acknowledgments
 
