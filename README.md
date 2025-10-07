@@ -10,13 +10,8 @@ In this project we introduce **MIMIC-D**, a CTDE (Centralized Training, Decentra
 
 Many real-world multi-agent tasks have **multiple valid coordination modes** (e.g., pass-left vs pass-right) and cannot assume reliable centralized planners or explicit communication. MIMIC-D trains policies jointly with full information, then **executes with only local observations**, enabling **implicit coordination** while preserving **multi-modality** in the learned behaviors. We validate MIMIC-D in multiple simulation environments and on a **bimanual hardware** setup with heterogeneous arms (Kinova3 + xArm7).
 <p align="center">
-  <video width="600" controls muted playsinline preload="metadata">
-    <source src="docs/videos/MIMIC-D.mp4" type="video/mp4" />
-    Your browser doesn’t support HTML5 video.
-  </video>
+  <img src="docs/videos/MIMIC-D.gif" alt="MIMIC-D" width="640">
 </p>
-
-
 
 
 ## Project Organization
