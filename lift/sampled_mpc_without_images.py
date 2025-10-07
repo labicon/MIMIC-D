@@ -104,14 +104,14 @@ class PolicyPlayer:
 
         return obs
 
-    def load_model(self, expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7):
+    def load_model(self, expert_data1, expert_data2, obs_init1, obs_init2, obs, state_dim = 7, action_dim = 7):
         model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
         H = 25 # horizon, length of each trajectory
         T = 700 # total time steps
 
         obs = np.repeat(obs, repeats=T, axis=0)
-        obs1 = np.hstack([obs_init1, obs_init2, obs, image_latents_initial_arm1])
-        obs2 = np.hstack([obs_init2, obs_init1, obs, image_latents_initial_arm2])
+        obs1 = np.hstack([obs_init1, obs_init2, obs])
+        obs2 = np.hstack([obs_init2, obs_init1, obs])
         obs1 = torch.FloatTensor(obs1).to(device)
         obs2 = torch.FloatTensor(obs2).to(device)
         attr1 = obs1
@@ -131,7 +131,8 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-        action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_camera")
+        action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf_sitedata_newslower_rotvec_separatenorm")
+
         return action_cond_ode
 
     
@@ -172,9 +173,9 @@ class PolicyPlayer:
         state1 = np.hstack([local_pos1, rotvec1, grip1])
 
         return state0, state1
-
-
-    def reactive_mpc_plan(self, ode_model, initial_states, pot, image_latents_initial_arm1, image_latents_initial_arm2, segment_length=25, total_steps=325, n_implement=2):
+    
+    
+    def reactive_mpc_plan(self, ode_model, initial_states, pot, segment_length=25, total_steps=325, n_implement=2):
         """
         Plans a full trajectory (total_steps long) by iteratively planning
         segment_length-steps using the diffusion model and replanning at every timestep.
@@ -201,10 +202,7 @@ class PolicyPlayer:
             # 1) sample a full normalized‐action segment for each arm
             for i in range(len(base_states)):
                 # build conditioning vector exactly as in training
-                if i == 0:
-                    cond = [base_states[i]] + [base_states[j] for j in range(len(base_states)) if j!=i] + [pot, image_latents_initial_arm1]
-                else:
-                    cond = [base_states[i]] + [base_states[j] for j in range(len(base_states)) if j!=i] + [pot, image_latents_initial_arm2]
+                cond = [base_states[i]] + [base_states[j] for j in range(len(base_states)) if j!=i] + [pot]
                 cond = np.hstack(cond)
                 cond_tensor = torch.tensor(cond, dtype=torch.float32, device=device).unsqueeze(0)
 
@@ -262,16 +260,8 @@ class PolicyPlayer:
         expert_data = np.load("data/expert_actions_newslower_20.npy")
         expert_data1 = expert_data[:, :, :7]
         expert_data2 = expert_data[:, :, 7:14]
-
-        # images
-        expert_images_latents_arm1 = np.load("data/arm1_images_latents.npy")
-        expert_images_latents_arm2 = np.load("data/arm2_images_latents.npy")
-        
         expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
         expert_data2 = create_mpc_dataset(expert_data2, planning_horizon=H)
-        expert_images_latents_arm1 = create_mpc_dataset(expert_images_latents_arm1, planning_horizon=H)
-        expert_images_latents_arm2 = create_mpc_dataset(expert_images_latents_arm2, planning_horizon=H)
-
         combined_data = np.concatenate((expert_data1, expert_data2), axis=0)
         self.mean = np.mean(combined_data, axis=(0,1))
         self.std = np.std(combined_data, axis=(0,1))
@@ -287,15 +277,12 @@ class PolicyPlayer:
         obs_init1 = expert_data1[:, 0, :]
         obs_init2 = expert_data2[:, 0, :]
 
-        image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
-        image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
-
         with open("data/pot_start_newslower_20.npy", "rb") as f:
             obs = np.load(f)
 
-        model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7)
+        model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, state_dim = 7, action_dim = 7)
 
-        planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], image_latents_initial_arm1[cond_idx], image_latents_initial_arm2[cond_idx], segment_length=H, total_steps=T*2, n_implement=10)
+        planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], segment_length=H, total_steps=T*2, n_implement=10)
         planned_traj1 =  planned_trajs[0] * self.std_arm1 + self.mean_arm1
         # np.save("sampled_trajs/mpc_P34E5/mpc_traj1_%s.npy" % i, planned_traj1)
         planned_traj2 = planned_trajs[1] * self.std_arm2 + self.mean_arm2
@@ -321,5 +308,5 @@ if __name__ == "__main__":
     )
 
     player = PolicyPlayer(env, render = False)
-    cond_idx = 10
+    cond_idx = 0
     player.get_demo(seed = cond_idx*10, cond_idx = cond_idx, H=H, T=T)

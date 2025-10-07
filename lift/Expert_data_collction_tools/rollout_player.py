@@ -248,4 +248,4 @@ def process_rollouts_in_directory(directory_path, file_pattern="rollout_seed*_mo
 # ⚠️ 注意：file_pattern 默认为 "rollout_seed*_mode2.pkl"，
 # 请根据您的实际文件命名情况进行修改。
 directory = "../rollouts/newslower" 
-process_rollouts_in_directory(directory, file_pattern="rollout_seed*_mode3.pkl")
+process_rollouts_in_directory(directory, file_pattern="rollout_seed*_mode*.pkl")
