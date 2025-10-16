@@ -42,8 +42,8 @@ class ContinuousCondEmbedder(nn.Module):
         self.attr_dim = attr_dim
         self.lin_scale = lin_scale
         self.embedding = nn.Linear(attr_dim, int(attr_dim*lin_scale)) # 1 layer affine to transform initial state into embedding vector
-        self.attn = nn.MultiheadAttention(128, num_heads=2, batch_first=True)
-        self.linear = nn.Linear(128 * attr_dim, hidden_size)
+        self.attn = nn.MultiheadAttention(lin_scale, num_heads=2, batch_first=True)
+        self.linear = nn.Linear(lin_scale * attr_dim, hidden_size)
     
     def forward(self, attr: torch.Tensor, mask: torch.Tensor = None):
         '''
@@ -417,7 +417,7 @@ class Conditional_ODE():
         
     def load(self, extra: str = ""):
         """Loads state dictionaries for all transformers and their EMA copies."""
-        name = "trained_models/" + self.filename + extra + ".pt"
+        name = "/home/tintin/Downloads/VAE_models_ICON/TrainedDiffusionModels/" + self.filename + extra + ".pt"
         if os.path.isfile(name):
             print("Loading " + name)
             checkpoint = torch.load(name, map_location=self.device)
