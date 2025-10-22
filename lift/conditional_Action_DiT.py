@@ -328,6 +328,8 @@ class Conditional_ODE():
         pbar = tqdm(range(n_gradient_steps))
         for step in range(n_gradient_steps):
             loss_total = 0.0
+            if step % 500 and step != 0:
+                torch.cuda.empty_cache() 
             for i in range(self.n_models):
                 idx = np.random.randint(0, N_trajs_list[i], batch_size)
                 x = x_normalized_list[i][idx].clone()   # shape: (batch_size, horizon, action_size)
@@ -413,11 +415,11 @@ class Conditional_ODE():
         for i in range(self.n_models):
             state[f"model_{i}"] = self.F_list[i].state_dict()
             state[f"model_ema_{i}"] = self.F_ema_list[i].state_dict()
-        torch.save(state, "trained_models/" + self.filename + extra + ".pt")
+        torch.save(state, "data/models/VAE_models_ICON/trained_models/" + self.filename + extra + ".pt")
         
     def load(self, extra: str = ""):
         """Loads state dictionaries for all transformers and their EMA copies."""
-        name = "/home/tintin/Downloads/VAE_models_ICON/TrainedDiffusionModels/" + self.filename + extra + ".pt"
+        name = "/home/icon-labtop/anthony/MIMIC-D/lift/data/models/VAE_models_ICON/trained_models/Cond_ODE_TwoArmLift_specs_256_4_3_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW2.pt"
         if os.path.isfile(name):
             print("Loading " + name)
             checkpoint = torch.load(name, map_location=self.device)
@@ -527,7 +529,6 @@ class Conditional_Planner():
             if done: break
         
         return Traj[:t+2], traj_reward
-
 
 
 

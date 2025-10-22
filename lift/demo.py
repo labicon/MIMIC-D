@@ -383,6 +383,13 @@ class PolicyPlayer:
                 self.rollout["pot_states1"].append(self.get_pot_state_local()[0])
                 self.rollout["pot_states2"].append(self.get_pot_state_local()[1])
 
+                if 'camera_obs0' not in self.rollout:
+                    self.rollout['camera_obs0'] = []
+                    self.rollout['camera_obs1'] = []
+
+                self.rollout['camera_obs0'].append(obs['robot0_eye_in_hand_image'])
+                self.rollout['camera_obs1'].append(obs['robot1_eye_in_hand_image'])
+
                 time.sleep(sleeptime)
 
                 if self.render:
@@ -422,8 +429,11 @@ if __name__ == "__main__":
     controller_configs=controller_config,
     has_renderer=False,
     render_camera=None,
-    has_offscreen_renderer=False,
-    use_camera_obs=False,
+    has_offscreen_renderer=True,
+    use_camera_obs=True,
+    camera_names=["robot0_eye_in_hand", "robot1_eye_in_hand"],
+    camera_heights=128,
+    camera_widths=128
     )
 
     player = PolicyPlayer(env, render = False)
@@ -431,7 +441,8 @@ if __name__ == "__main__":
     # print("length of episode:", len(rollout["observations"]))
     # rollout = player.get_demo(seed = 100, mode = 3)
     # print("length of episode:", len(rollout["observations"]))
-    for i in range(200):   
+    for i in range(40, 60):   
+        print("Here" + str(i))
         rollout = player.get_demo(seed = i*10, mode = 2)
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
         with open("rollouts/newslower/rollout_seed%s_mode2.pkl" % (i*10), "wb") as f:

@@ -14,25 +14,25 @@ def load_and_display_images_continuously(filepath):
         with open(filepath, 'rb') as f:
             rollout = pkl.load(f)
 
-        if 'camera0_obs' not in rollout or not rollout['camera0_obs']:
-            print(f"No 'camera0_obs' found or it's empty in {filepath}.")
+        if 'camera_obs0' not in rollout or not rollout['camera_obs0']:
+            print(f"No 'camera_obs0' found or it's empty in {filepath}.")
             return
-        if 'camera1_obs' not in rollout or not rollout['camera1_obs']:
-            print(f"No 'camera1_obs' found or it's empty in {filepath}.")
+        if 'camera_obs1' not in rollout or not rollout['camera_obs1']:
+            print(f"No 'camera_obs1' found or it's empty in {filepath}.")
             return
             
-        # Turn on interactive mode
+        # Turn on interactive model
         plt.ion()
         
         # Set up the figure and subplots
         fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(12, 6))
         
         # Display the first image to get the image objects
-        im0 = ax0.imshow(rollout['camera0_obs'][0])
+        im0 = ax0.imshow(rollout['camera_obs0'][0])
         ax0.set_title("Robot 0 Camera Image")
         ax0.axis('off')
         
-        im1 = ax1.imshow(rollout['camera1_obs'][0])
+        im1 = ax1.imshow(rollout['camera_obs1'][0])
         ax1.set_title("Robot 1 Camera Image")
         ax1.axis('off')
         
@@ -40,11 +40,11 @@ def load_and_display_images_continuously(filepath):
         plt.show(block=False)
 
         # Loop through all images and update the plot
-        num_frames = min(len(rollout['camera0_obs']), len(rollout['camera1_obs']))
+        num_frames = min(len(rollout['camera_obs0']), len(rollout['camera_obs1']))
         for i in range(num_frames):
             # Update the image data
-            im0.set_data(rollout['camera0_obs'][i])
-            im1.set_data(rollout['camera1_obs'][i])
+            im0.set_data(rollout['camera_obs0'][i])
+            im1.set_data(rollout['camera_obs1'][i])
             
             # Redraw the canvas and pause for a short time
             fig.canvas.draw()
@@ -62,6 +62,6 @@ def load_and_display_images_continuously(filepath):
 
 # --- Example Usage ---
 directory = "../rollouts/newslower"
-filename = "rollout_seed30_mode2.pkl"
+filename = "rollout_seed150_mode3.pkl"
 file_path = os.path.join(directory, filename)
 load_and_display_images_continuously(file_path)
