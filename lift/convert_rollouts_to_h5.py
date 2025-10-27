@@ -13,19 +13,16 @@ def convert_rollout_to_h5(pkl_path, h5_output_dir):
     with open(pkl_path, 'rb') as f:
         rollout = pkl.load(f)
 
-    camera0_images = []
-    camera1_images = []
+    if 'camera_obs0' not in rollout or 'camera_obs1' not in rollout:
+        print(f"Warning: {pkl_path} missing camera observations, skipping...")
+        return False
 
-    for obs in rollout['observations']:
-        camera0_images.append(obs['robot0_eye_in_hand_image'])
-        camera1_images.append(obs['robot1_eye_in_hand_image'])
+    camera0_images = np.array(rollout['camera_obs0'])
+    camera1_images = np.array(rollout['camera_obs1'])
 
     if len(camera0_images) == 0 or len(camera1_images) == 0:
         print(f"Warning: {pkl_path} has empty camera observations, skipping...")
         return False
-
-    camera0_images = np.array(camera0_images)
-    camera1_images = np.array(camera1_images)
 
     basename = os.path.basename(pkl_path).replace('.pkl', '.h5')
     h5_path = os.path.join(h5_output_dir, basename)
@@ -34,9 +31,8 @@ def convert_rollout_to_h5(pkl_path, h5_output_dir):
         f.create_dataset('robot0_eye_in_hand_image', data=camera0_images, compression='gzip')
         f.create_dataset('robot1_eye_in_hand_image', data=camera1_images, compression='gzip')
 
-        # Save other top-level keys if they are array-likeS
         for key in rollout.keys():
-            if key != 'observations':
+            if key not in ['observations', 'camera_obs0', 'camera_obs1']:
                 try:
                     data = rollout[key]
                     if isinstance(data, list):
@@ -50,13 +46,14 @@ def convert_rollout_to_h5(pkl_path, h5_output_dir):
 
 
 
+
 def main():
     parser = argparse.ArgumentParser(description='Convert rollout .pkl files to .h5 format for VAE training')
     parser.add_argument('--rollout_dir', type=str, 
-                       default=os.path.join(os.path.dirname(__file__), 'rollouts'),
+                       default=os.path.join(os.path.dirname(__file__), 'rollouts/newslower'),
                        help='Directory containing rollout .pkl files')
     parser.add_argument('--output_dir', type=str, 
-                       default=os.path.join(os.path.dirname(__file__), 'data'),
+                       default=os.path.join(os.path.dirname(__file__), 'data/h5data'),
                        help='Directory to save .h5 files')
     parser.add_argument('--recursive', action='store_true',
                        help='Search for .pkl files recursively')
