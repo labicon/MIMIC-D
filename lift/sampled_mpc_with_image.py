@@ -259,13 +259,13 @@ class PolicyPlayer:
         obs = self.reset(seed)
 
         # Loading
-        expert_data = np.load("data/models/VAE_models_ICON/expert_actions_newslower_20.npy")
+        expert_data = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/expert_actions_newslower_20.npy")
         expert_data1 = expert_data[:, :, :7]
         expert_data2 = expert_data[:, :, 7:14]
 
         # images
-        expert_images_latents_arm1 = np.load("data/models/VAE_models_ICON/arm1_images_latents.npy")
-        expert_images_latents_arm2 = np.load("data/models/VAE_models_ICON/arm2_images_latents.npy")
+        expert_images_latents_arm1 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm1_images_latents.npy")
+        expert_images_latents_arm2 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm2_images_latents.npy")
         
         expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
         expert_data2 = create_mpc_dataset(expert_data2, planning_horizon=H)
@@ -290,7 +290,7 @@ class PolicyPlayer:
         image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
         image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
 
-        with open("data/models/VAE_models_ICON/pot_start_newslower_20.npy", "rb") as f:
+        with open("data/models/VAE_models_ICON/TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
             obs = np.load(f)
 
         model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7)
