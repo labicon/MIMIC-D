@@ -415,11 +415,11 @@ class Conditional_ODE():
         for i in range(self.n_models):
             state[f"model_{i}"] = self.F_list[i].state_dict()
             state[f"model_ema_{i}"] = self.F_ema_list[i].state_dict()
-        torch.save(state, "data/models/VAE_models_ICON/trained_models/" + self.filename + extra + ".pt")
+        torch.save(state, "trained_models/" + self.filename + extra + ".pt")
         
     def load(self, extra: str = ""):
         """Loads state dictionaries for all transformers and their EMA copies."""
-        name = "/home/icon-labtop/anthony/MIMIC-D/lift/data/models/VAE_models_ICON/trained_models/Cond_ODE_TwoArmLift_specs_256_4_3_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_camera.pt"
+        name = "trained_models/" + self.filename + extra + ".pt"
         if os.path.isfile(name):
             print("Loading " + name)
             checkpoint = torch.load(name, map_location=self.device)
