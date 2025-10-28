@@ -419,7 +419,7 @@ class Conditional_ODE():
         
     def load(self, extra: str = ""):
         """Loads state dictionaries for all transformers and their EMA copies."""
-        name = "/home/icon-labtop/anthony/MIMIC-D/lift/data/models/VAE_models_ICON/trained_models/Cond_ODE_TwoArmLift_specs_256_4_3_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW2.pt"
+        name = "/home/icon-labtop/anthony/MIMIC-D/lift/data/models/VAE_models_ICON/trained_models/Cond_ODE_TwoArmLift_specs_256_4_3_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_camera.pt"
         if os.path.isfile(name):
             print("Loading " + name)
             checkpoint = torch.load(name, map_location=self.device)
