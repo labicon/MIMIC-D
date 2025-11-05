@@ -1,5 +1,5 @@
 # This script trains the Conditional ODE model for the Two Arm Lift task,
-# using separate image latent vectors for each arm's on-board camera.
+# conditioning ONLY on initial arm positions and image latents (no pot position, no cross-arm info).
 
 import torch
 import numpy as np
@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import sys
 import pdb
 
-def create_mpc_dataset(expert_data, planning_horizon=25):
+def create_mpc_dataset(expert_data, planning_horizon=20):
     n_traj, horizon, state_dim = expert_data.shape
     n_subtraj = horizon  # we'll create one sub-trajectory starting at each time step
 
@@ -36,21 +36,21 @@ print(device)
 
 
 # Parameters
-n_gradient_steps = 7000
+n_gradient_steps = 2000
 batch_size = 32
 model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-H = 25 # horizon, length of each trajectory
+H = 15 # horizon, length of each trajectory
 T = 700 # total time steps
 
 # Load expert data
-expert_data = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/expert_actions_newslower_20.npy")
+expert_data = np.load("TrainingDataDiffusion/expert_actions_newslower_20.npy")
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
 
 # Load and process image data for each arm
 # Assuming the image latents are 128-dimensional for each arm
-expert_images_latents_arm1 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm1_images_latents.npy")
-expert_images_latents_arm2 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm2_images_latents.npy")
+expert_images_latents_arm1 = np.load("TrainingDataDiffusion/arm1_images_latents.npy")
+expert_images_latents_arm2 = np.load("TrainingDataDiffusion/arm2_images_latents.npy")
 print(f"Loaded arm 1 image latents with shape: {expert_images_latents_arm1.shape}")
 print(f"Loaded arm 2 image latents with shape: {expert_images_latents_arm2.shape}")
 
@@ -89,22 +89,19 @@ actions2 = torch.FloatTensor(actions2).to(device)
 sigma_data1 = actions1.std().item()
 sigma_data2 = actions2.std().item()
 
-# Prepare conditional vectors with separate image information
-with open("data/models/VAE_models_ICON/TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
-    obs = np.load(f)
+# Prepare conditional vectors with ONLY initial positions and image information
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
-obs = np.repeat(obs, repeats=T, axis=0)
 
 # Use the initial image latent for each sub-trajectory
 image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
 image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
 
-# Stack all conditions together
-# Arm 1 condition: [initial state of arm 1, initial pot grasp, initial image latent of arm 1]
-attr1 = np.hstack([obs_init1, obs_init2, obs, image_latents_initial_arm1])
-# Arm 2 condition: [initial state of arm 2, initial state of arm 1, initial pot grasp, initial image latent of arm 2]
-attr2 = np.hstack([obs_init2, obs_init1, obs, image_latents_initial_arm2])
+# Stack all conditions together - ONLY initial position and images
+# Arm 1 condition: [initial state of arm 1, initial image latent of arm 1]
+attr1 = np.hstack([image_latents_initial_arm1])
+# Arm 2 condition: [initial state of arm 2, initial image latent of arm 2]
+attr2 = np.hstack([image_latents_initial_arm2])
 
 attr1 = torch.FloatTensor(attr1).to(device)
 attr2 = torch.FloatTensor(attr2).to(device)
@@ -112,7 +109,7 @@ attr_dim1 = attr1.shape[1]
 attr_dim2 = attr2.shape[1]
 
 # Training
-end="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW4"
+end="_lift_mpc_P20E1_imageonlyLATENT_rotvec_separatenorm_dual_camera"
 action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
 action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra=end, endpoint_loss=False)
 action_cond_ode.save(extra=end)

@@ -40,3 +40,19 @@ class TimMResNet18Encoder(nn.Module):
         softmax_features = self.spatial_softmax(features) 
         latent = self.projector(softmax_features) 
         return latent
+
+class StateEncoder(nn.Module):
+    def __init__(self, input_dim=14, latent_dim=128):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.LayerNorm(256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.LayerNorm(128),
+            nn.ReLU(),
+            nn.Linear(128, latent_dim)
+        )
+
+    def forward(self, x):
+        return self.net(x)
