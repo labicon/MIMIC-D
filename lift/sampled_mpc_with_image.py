@@ -131,7 +131,7 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-        action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_camera")
+        action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW5")
         return action_cond_ode
 
     
@@ -198,7 +198,6 @@ class PolicyPlayer:
             segments = []
             base_states = current_states.copy()
 
-            # 1) sample a full normalized‐action segment for each arm
             for i in range(len(base_states)):
                 # build conditioning vector exactly as in training
                 if i == 0:
@@ -322,4 +321,4 @@ if __name__ == "__main__":
 
     player = PolicyPlayer(env, render = False)
     cond_idx = 0
-    player.get_demo(seed = 80, cond_idx = cond_idx, H=H, T=T)
+    player.get_demo(seed = 300, cond_idx = cond_idx, H=H, T=T)
