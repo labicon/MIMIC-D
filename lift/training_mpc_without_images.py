@@ -1,10 +1,12 @@
-# This script trains the Conditional ODE model for the Two Arm Lift task,
-# using separate image latent vectors for each arm's on-board camera.
+# This script is used to train the Conditional ODE model for the Two Arm Lift task.
+# It uses the 3-dimensional rotation vector of the arm's state and action.
+# The model is conditioned on the initial grasp position of the two pot handles.
 
 import torch
 import numpy as np
 from conditional_Action_DiT import Conditional_ODE
 import matplotlib.pyplot as plt
+# from discrete import *
 import sys
 import pdb
 
@@ -36,11 +38,7 @@ print(device)
 
 
 # Parameters
-<<<<<<< HEAD
-n_gradient_steps = 7000
-=======
-n_gradient_steps = 50000
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
+n_gradient_steps = 50_000
 batch_size = 32
 model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
 H = 25 # horizon, length of each trajectory
@@ -50,19 +48,8 @@ T = 700 # total time steps
 expert_data = np.load("TrainingDataDiffusion/expert_actions_newslower_20.npy")
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
-
-# Load and process image data for each arm
-# Assuming the image latents are 128-dimensional for each arm
-expert_images_latents_arm1 = np.load("TrainingDataDiffusion/arm1_images_latents.npy")
-expert_images_latents_arm2 = np.load("TrainingDataDiffusion/arm2_images_latents.npy")
-print(f"Loaded arm 1 image latents with shape: {expert_images_latents_arm1.shape}")
-print(f"Loaded arm 2 image latents with shape: {expert_images_latents_arm2.shape}")
-
-# Create MPC datasets for actions and images
 expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
 expert_data2 = create_mpc_dataset(expert_data2, planning_horizon=H)
-expert_images_latents_arm1 = create_mpc_dataset(expert_images_latents_arm1, planning_horizon=H)
-expert_images_latents_arm2 = create_mpc_dataset(expert_images_latents_arm2, planning_horizon=H)
 
 # Compute mean and standard deviation
 combined_data = np.concatenate((expert_data1, expert_data2), axis=0)
@@ -93,34 +80,23 @@ actions2 = torch.FloatTensor(actions2).to(device)
 sigma_data1 = actions1.std().item()
 sigma_data2 = actions2.std().item()
 
-# Prepare conditional vectors with separate image information
+# Prepare conditional vectors for training
 with open("TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
     obs = np.load(f)
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
 obs = np.repeat(obs, repeats=T, axis=0)
-
-# Use the initial image latent for each sub-trajectory
-image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
-image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
-
-# Stack all conditions together
-# Arm 1 condition: [initial state of arm 1, initial pot grasp, initial image latent of arm 1]
-attr1 = np.hstack([obs_init1, obs_init2, obs, image_latents_initial_arm1])
-# Arm 2 condition: [initial state of arm 2, initial state of arm 1, initial pot grasp, initial image latent of arm 2]
-attr2 = np.hstack([obs_init2, obs_init1, obs, image_latents_initial_arm2])
-
-attr1 = torch.FloatTensor(attr1).to(device)
-attr2 = torch.FloatTensor(attr2).to(device)
+obs1 = np.hstack([obs_init1, obs_init2, obs])
+obs2 = np.hstack([obs_init2, obs_init1, obs])
+obs1 = torch.FloatTensor(obs1).to(device)
+obs2 = torch.FloatTensor(obs2).to(device)
+attr1 = obs1
+attr2 = obs2
 attr_dim1 = attr1.shape[1]
 attr_dim2 = attr2.shape[1]
 
 # Training
-<<<<<<< HEAD
-end="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW4"
-=======
-end="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_camera_50000steps"
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
+end="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf_sitedata_newslower_rotvec_separatenorm"
 action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
 action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra=end, endpoint_loss=False)
 action_cond_ode.save(extra=end)

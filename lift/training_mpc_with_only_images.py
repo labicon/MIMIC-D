@@ -1,5 +1,5 @@
 # This script trains the Conditional ODE model for the Two Arm Lift task,
-# using separate image latent vectors for each arm's on-board camera.
+# conditioning ONLY on initial arm positions and image latents (no pot position, no cross-arm info).
 
 import torch
 import numpy as np
@@ -36,11 +36,7 @@ print(device)
 
 
 # Parameters
-<<<<<<< HEAD
-n_gradient_steps = 7000
-=======
-n_gradient_steps = 50000
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
+n_gradient_steps = 5000
 batch_size = 32
 model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
 H = 25 # horizon, length of each trajectory
@@ -93,22 +89,19 @@ actions2 = torch.FloatTensor(actions2).to(device)
 sigma_data1 = actions1.std().item()
 sigma_data2 = actions2.std().item()
 
-# Prepare conditional vectors with separate image information
-with open("TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
-    obs = np.load(f)
+# Prepare conditional vectors with ONLY initial positions and image information
 obs_init1 = expert_data1[:, 0, :]
 obs_init2 = expert_data2[:, 0, :]
-obs = np.repeat(obs, repeats=T, axis=0)
 
 # Use the initial image latent for each sub-trajectory
 image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
 image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
 
-# Stack all conditions together
-# Arm 1 condition: [initial state of arm 1, initial pot grasp, initial image latent of arm 1]
-attr1 = np.hstack([obs_init1, obs_init2, obs, image_latents_initial_arm1])
-# Arm 2 condition: [initial state of arm 2, initial state of arm 1, initial pot grasp, initial image latent of arm 2]
-attr2 = np.hstack([obs_init2, obs_init1, obs, image_latents_initial_arm2])
+# Stack all conditions together - ONLY initial position and images
+# Arm 1 condition: [initial state of arm 1, initial image latent of arm 1]
+attr1 = np.hstack([obs_init1, image_latents_initial_arm1])
+# Arm 2 condition: [initial state of arm 2, initial image latent of arm 2]
+attr2 = np.hstack([obs_init2, image_latents_initial_arm2])
 
 attr1 = torch.FloatTensor(attr1).to(device)
 attr2 = torch.FloatTensor(attr2).to(device)
@@ -116,11 +109,7 @@ attr_dim1 = attr1.shape[1]
 attr_dim2 = attr2.shape[1]
 
 # Training
-<<<<<<< HEAD
-end="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW4"
-=======
-end="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_camera_50000steps"
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
+end="_lift_mpc_P25E1_imageonly_rotvec_separatenorm_dual_camera"
 action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
 action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra=end, endpoint_loss=False)
 action_cond_ode.save(extra=end)

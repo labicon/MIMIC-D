@@ -131,7 +131,11 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
+<<<<<<< HEAD
         action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_rotvec_separatenorm_dual_cameraNEW5")
+=======
+        action_cond_ode.load(extra="_lift_mpc_P25E1_imageonly_rotvec_separatenorm_dual_camera")
+>>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
         return action_cond_ode
 
     
@@ -258,13 +262,13 @@ class PolicyPlayer:
         obs = self.reset(seed)
 
         # Loading
-        expert_data = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/expert_actions_newslower_20.npy")
+        expert_data = np.load("TrainingDataDiffusion/expert_actions_newslower_20.npy")
         expert_data1 = expert_data[:, :, :7]
         expert_data2 = expert_data[:, :, 7:14]
 
         # images
-        expert_images_latents_arm1 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm1_images_latents.npy")
-        expert_images_latents_arm2 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm2_images_latents.npy")
+        expert_images_latents_arm1 = np.load("TrainingDataDiffusion/arm1_images_latents.npy")
+        expert_images_latents_arm2 = np.load("TrainingDataDiffusion/arm2_images_latents.npy")
         
         expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
         expert_data2 = create_mpc_dataset(expert_data2, planning_horizon=H)
@@ -289,7 +293,7 @@ class PolicyPlayer:
         image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
         image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
 
-        with open("data/models/VAE_models_ICON/TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
+        with open("TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
             obs = np.load(f)
 
         model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7)
