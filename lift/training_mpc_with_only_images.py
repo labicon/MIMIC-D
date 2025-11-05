@@ -43,14 +43,14 @@ H = 25 # horizon, length of each trajectory
 T = 700 # total time steps
 
 # Load expert data
-expert_data = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/expert_actions_newslower_20.npy")
+expert_data = np.load("TrainingDataDiffusion/expert_actions_newslower_20.npy")
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
 
 # Load and process image data for each arm
 # Assuming the image latents are 128-dimensional for each arm
-expert_images_latents_arm1 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm1_images_latents.npy")
-expert_images_latents_arm2 = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm2_images_latents.npy")
+expert_images_latents_arm1 = np.load("TrainingDataDiffusion/arm1_images_latents.npy")
+expert_images_latents_arm2 = np.load("TrainingDataDiffusion/arm2_images_latents.npy")
 print(f"Loaded arm 1 image latents with shape: {expert_images_latents_arm1.shape}")
 print(f"Loaded arm 2 image latents with shape: {expert_images_latents_arm2.shape}")
 

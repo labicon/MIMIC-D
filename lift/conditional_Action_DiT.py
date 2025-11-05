@@ -296,80 +296,98 @@ class Conditional_ODE():
         return c_skip * x + c_out * F(c_in * x, c_noise.squeeze(-1), condition, mask)
     
     def train(self,
-              x_normalized_list: list,
-              attributes_list: list,
-              n_gradient_steps: int,
-              batch_size: int = 32,
-              extra: str = "",
-              time_limit=None,
-              endpoint_loss: bool = False):
-        """
-        Trains the diffusion transformers on multiple datasets.
-        
-        x_normalized_list: list of training data tensors, one per transformer.
-            Each tensor should have shape (n_trajs, horizon, action_size).
-        attributes_list: list of attribute tensors, one per transformer.
-            Each tensor should have shape (n_trajs, attr_dim) where attr_dim = state_size * 2.
-        n_gradient_steps: number of gradient steps.
-        batch_size: batch size per transformer.
-        time_limit: training time limit in seconds (optional).
-        """
+          x_normalized_list: list,
+          attributes_list: list,
+          n_gradient_steps: int,
+          batch_size: int = 32,
+          extra: str = "",
+          time_limit=None,
+          endpoint_loss: bool = False):
         print(f'Begins training of {self.n_models} Diffusion Transformer(s): {self.filename + extra}')
         if time_limit is not None:
             t0 = time.time()
             print(f"Training limited to {time_limit:.0f}s")
-            
-        assert len(x_normalized_list) == self.n_models and len(attributes_list) == self.n_models, \
-            "Length of training data lists must equal n_models"
-        
+
+        assert len(x_normalized_list) == self.n_models and len(attributes_list) == self.n_models
+
+
         N_trajs_list = [x.shape[0] for x in x_normalized_list]
+
+        # Precompute parameter list once
+        self.all_params = [p for model in self.F_list for p in model.parameters()]
+
+        # Mixed precision
+        scaler = torch.cuda.amp.GradScaler()
+        torch.backends.cudnn.benchmark = True
+
         loss_avg = 0.0
-        
         pbar = tqdm(range(n_gradient_steps))
         for step in range(n_gradient_steps):
             loss_total = 0.0
-            if step % 500 and step != 0:
-                torch.cuda.empty_cache() 
+
+            # only clear cache rarely (fix the logic)
+            if step != 0 and step % 500 == 0:
+                torch.cuda.empty_cache()
+
+            # time a step (optional — remove in production)
+            step_start = time.time()
+
             for i in range(self.n_models):
-                idx = np.random.randint(0, N_trajs_list[i], batch_size)
-                x = x_normalized_list[i][idx].clone()   # shape: (batch_size, horizon, action_size)
-                attr = attributes_list[i][idx].clone()    # shape: (batch_size, attr_dim)
-                
-                sigma = self.sample_noise_distribution(x.shape[0])
-                eps = torch.randn_like(x) * sigma
-                loss_mask = torch.ones_like(x)
-                mask = (torch.rand(*attr.shape, device=self.device) > 0.2).int()
-                
-                pred = self.D(x + eps, sigma, condition=attr, mask=mask, model_index=i)
-                loss = (loss_mask * self.loss_weighting(sigma, model_index=i) * (pred - x) ** 2).mean()
-                
-                if endpoint_loss:
-                    pred_start = pred[:, 0, :self.state_size]
-                    cond_start = attr[:, :self.state_size]
-                    endpoint_loss = ((pred_start - cond_start) ** 2).mean()
-                    loss = loss + 2.0 * endpoint_loss
-                else:
-                    loss_total += loss
-            
-            self.optim.zero_grad()
-            loss_total.backward()
-            all_params = []
-            for model in self.F_list:
-                all_params += list(model.parameters())
-            grad_norm = torch.nn.utils.clip_grad_norm_(all_params, 10.0)
-            self.optim.step()
+                # sample indices using torch on the correct device
+                idx = torch.randint(0, N_trajs_list[i], (batch_size,), device='cpu')  # CPU indices are fine
+                # prefer x_normalized_list to be torch tensors already (ideally on GPU)
+                x = x_normalized_list[i][idx]  # avoid unnecessary clone; ensure x_normalized_list tensors are on device
+                attr = attributes_list[i][idx]
+
+                # Move to device if not already
+                if x.device != torch.device(self.device):
+                    x = x.to(self.device, non_blocking=True)
+                if attr.device != torch.device(self.device):
+                    attr = attr.to(self.device, non_blocking=True)
+
+                sigma = self.sample_noise_distribution(x.shape[0])  # already created on self.device in your implementation
+                eps = torch.randn_like(x, device=self.device) * sigma
+                loss_mask = torch.ones_like(x, device=self.device)
+                mask = (torch.rand(attr.shape, device=self.device) > 0.2).int()
+
+                # Use AMP for forward
+                with torch.cuda.amp.autocast():
+                    pred = self.D(x + eps, sigma, condition=attr, mask=mask, model_index=i)
+                    loss = (loss_mask * self.loss_weighting(sigma, model_index=i) * (pred - x) ** 2).mean()
+
+                    if endpoint_loss:
+                        pred_start = pred[:, 0, :self.state_size]
+                        cond_start = attr[:, :self.state_size]
+                        ep_loss = ((pred_start - cond_start) ** 2).mean()
+                        loss = loss + 2.0 * ep_loss
+
+                loss_total = loss_total + loss  # accumulate all model losses
+
+            # optimizer step with scaler
+            self.optim.zero_grad(set_to_none=True)
+            scaler.scale(loss_total).backward()
+            scaler.unscale_(self.optim)
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.all_params, 10.0)
+            scaler.step(self.optim)
+            scaler.update()
             self.ema_update()
-            
+
             loss_avg += loss_total.item()
+            # update progress bar less frequently, save less frequently
             if (step + 1) % 10 == 0:
                 pbar.set_description(f'step: {step+1} loss: {loss_avg/10:.4f} grad_norm: {grad_norm:.4f}')
                 pbar.update(10)
                 loss_avg = 0.0
+
+            if (step + 1) % 500 == 0:  # save checkpoint far less often
                 self.save(extra)
-                if time_limit is not None and time.time() - t0 > time_limit:
-                    print(f"Time limit reached at {time.time() - t0:.0f}s")
-                    break
+
+            if time_limit is not None and time.time() - t0 > time_limit:
+                print(f"Time limit reached at {time.time() - t0:.0f}s")
+                break
+
         print('\nTraining completed!')
+
         
     @torch.no_grad()
     def sample(self, attr, traj_len, n_samples: int, w: float = 1.5, N: int = None, model_index: int = 0):
