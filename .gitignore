@@ -7,3 +7,8 @@ lift/rollouts
 lift/data
 lift/dataLatent
 lift/MUJOCO_LOG.TXT
+
+lift/TrainingDataDiffusion*/
+
+__pycache__/
+*.pyc
