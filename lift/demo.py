@@ -441,13 +441,13 @@ if __name__ == "__main__":
     # print("length of episode:", len(rollout["observations"]))
     # rollout = player.get_demo(seed = 100, mode = 3)
     # print("length of episode:", len(rollout["observations"]))
-    for i in range(40, 60):   
+    for i in range(0, 100):   
         print("Here" + str(i))
         rollout = player.get_demo(seed = i*10, mode = 2)
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        with open("rollouts/newslower/rollout_seed%s_mode2.pkl" % (i*10), "wb") as f:
+        with open("rollouts/new_fixed_arm/rollout_seed%s_mode2.pkl" % (i*10), "wb") as f:
             pkl.dump(rollout, f)
         rollout = player.get_demo(seed = i*10, mode = 3)
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        with open("rollouts/newslower/rollout_seed%s_mode3.pkl" % (i*10), "wb") as f:
+        with open("rollouts/new_fixed_arm/rollout_seed%s_mode3.pkl" % (i*10), "wb") as f:
             pkl.dump(rollout, f)

@@ -197,7 +197,7 @@ class TwoArmLiftRole(TwoArmEnv):
             controller_configs=controller_configs,
             base_types="default",
             gripper_types=gripper_types,
-            initialization_noise=initialization_noise,
+            # initialization_noise=initialization_noise,
             use_camera_obs=use_camera_obs,
             has_renderer=has_renderer,
             has_offscreen_renderer=has_offscreen_renderer,
