@@ -109,11 +109,6 @@ class PolicyPlayer:
         H = 25 # horizon, length of each trajectory
         T = 700 # total time steps
 
-<<<<<<< HEAD
-        print("LOADER INIT!")
-
-=======
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
         obs = np.repeat(obs, repeats=T, axis=0)
         obs1 = np.hstack([obs_init1, image_latents_initial_arm1])
         obs2 = np.hstack([obs_init2, image_latents_initial_arm2])
@@ -124,11 +119,7 @@ class PolicyPlayer:
         attr_dim1 = attr1.shape[1]
         attr_dim2 = attr2.shape[1]
 
-<<<<<<< HEAD
-        print("LOADED THS FAR")
 
-=======
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
         # Preparing expert data for training
         actions1 = expert_data1[:, :H, :]
         actions2 = expert_data2[:, :H, :]
@@ -300,12 +291,6 @@ class PolicyPlayer:
         self.mean_arm2 = np.mean(expert_data2, axis=(0,1))
         self.std_arm2 = np.std(expert_data2, axis=(0,1))
 
-<<<<<<< HEAD
-        print(self.std_arm1)
-        print(self.std_arm2)
-
-=======
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
         # Normalize data
         expert_data1 = (expert_data1 - self.mean_arm1) / self.std_arm1
         expert_data2 = (expert_data2 - self.mean_arm2) / self.std_arm2
@@ -319,17 +304,8 @@ class PolicyPlayer:
         with open("data/models/VAE_models_ICON/TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
             obs = np.load(f)
 
-<<<<<<< HEAD
-        print("Im here")
-
         model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7)
 
-
-        print("and here too!")
-=======
-        model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7)
-
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
         # Determine which original trajectory cond_idx corresponds to
         # cond_idx ranges from 0 to (n_traj * T - 1)
         n_traj = expert_images_latents_arm1_orig.shape[0]  # number of original trajectories
@@ -353,11 +329,7 @@ if __name__ == "__main__":
     controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
 
     T = 700
-<<<<<<< HEAD
-    H = 15
-=======
     H = 25
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
 
     env = TwoArmLiftRole(
     robots=["Kinova3", "Kinova3"],
@@ -372,8 +344,4 @@ if __name__ == "__main__":
 
     player = PolicyPlayer(env, render = False)
     cond_idx = 0
-<<<<<<< HEAD
-    player.get_demo(seed = 300, cond_idx = cond_idx, H=H, T=T)
-=======
     player.get_demo(seed = 80, cond_idx = cond_idx, H=H, T=T)
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
