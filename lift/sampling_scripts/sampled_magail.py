@@ -1,5 +1,5 @@
 # magail_sampler.py
-import os
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import math
 import torch
 import numpy as np
@@ -386,7 +386,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # create env (match your BC code call)
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller=os.path.join(os.path.dirname(__file__), "..", "kinova.json"))
 
     env = TwoArmLiftRole(
         robots=["Kinova3", "Kinova3"],

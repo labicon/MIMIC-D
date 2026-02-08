@@ -1,11 +1,11 @@
 # This script trains the Conditional ODE model for the Two Arm Lift task,
 # conditioning ONLY on initial arm positions and image latents (no pot position, no cross-arm info).
 
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import torch
 import numpy as np
 from conditional_Action_DiT import Conditional_ODE
 import matplotlib.pyplot as plt
-import sys
 import pdb
 
 def create_mpc_dataset(expert_data, planning_horizon=25):

@@ -2,6 +2,7 @@
 # Two-arm setting; generator/discriminator handle horizon H sequences.
 
 import os, math, random
+import sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
 import torch
 import torch.nn as nn

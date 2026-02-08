@@ -1,5 +1,6 @@
 # Generates demonstrations for the Two Arm Lift task
 
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ import robosuite as suite
 from robosuite.controllers import load_composite_controller_config
 from env import TwoArmLiftRole
 from scipy.spatial.transform import Rotation as R
-from utils.transform_utils import SE3_log_map, SE3_exp_map
+from transform_utils import SE3_log_map, SE3_exp_map
 
 class PolicyPlayer:
     def __init__ (self, env, render = False):
@@ -421,7 +422,7 @@ class PolicyPlayer:
     
         
 if __name__ == "__main__":
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller=os.path.join(os.path.dirname(__file__), "..", "kinova.json"))
 
     env = TwoArmLiftRole(
     robots=["Kinova3", "Kinova3"],
@@ -441,13 +442,13 @@ if __name__ == "__main__":
     # print("length of episode:", len(rollout["observations"]))
     # rollout = player.get_demo(seed = 100, mode = 3)
     # print("length of episode:", len(rollout["observations"]))
-    for i in range(40, 60):   
+    for i in range(0, 2):   
         print("Here" + str(i))
         rollout = player.get_demo(seed = i*10, mode = 2)
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        with open("rollouts/newslower/rollout_seed%s_mode2.pkl" % (i*10), "wb") as f:
+        with open(os.path.join(os.path.dirname(__file__), "..", "rollouts/newslower/rollout_seed%s_mode2.pkl" % (i*10)), "wb") as f:
             pkl.dump(rollout, f)
         rollout = player.get_demo(seed = i*10, mode = 3)
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        with open("rollouts/newslower/rollout_seed%s_mode3.pkl" % (i*10), "wb") as f:
+        with open(os.path.join(os.path.dirname(__file__), "..", "rollouts/newslower/rollout_seed%s_mode3.pkl" % (i*10)), "wb") as f:
             pkl.dump(rollout, f)

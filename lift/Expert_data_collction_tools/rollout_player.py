@@ -67,12 +67,12 @@ class RolloutPlayer:
             with open(self.filepath, 'rb') as f:
                 self.rollout = pkl.load(f)
             
-            if 'camera0_obs' not in self.rollout or not self.rollout['camera0_obs']:
-                raise ValueError("'camera0_obs' missing or empty.")
-            if 'camera1_obs' not in self.rollout or not self.rollout['camera1_obs']:
-                raise ValueError("'camera1_obs' missing or empty.")
+            if 'camera_obs0' not in self.rollout or not self.rollout['camera_obs0']:
+                raise ValueError("'camera_obs0' missing or empty.")
+            if 'camera_obs1' not in self.rollout or not self.rollout['camera_obs1']:
+                raise ValueError("'camera_obs1' missing or empty.")
             
-            self.num_frames = min(len(self.rollout['camera0_obs']), len(self.rollout['camera1_obs']))
+            self.num_frames = min(len(self.rollout['camera_obs0']), len(self.rollout['camera_obs1']))
             self.current_frame = 0
 
         except Exception as e:
@@ -88,11 +88,11 @@ class RolloutPlayer:
         self.fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(12, 6))
         
         # 显示第一帧图像
-        self.im0 = ax0.imshow(self.rollout['camera0_obs'][0])
+        self.im0 = ax0.imshow(self.rollout['camera_obs0'][0])
         ax0.set_title(f"Robot 0 Camera: {os.path.basename(self.filepath)} | Frame 0/{self.num_frames}")
         ax0.axis('off')
         
-        self.im1 = ax1.imshow(self.rollout['camera1_obs'][0])
+        self.im1 = ax1.imshow(self.rollout['camera_obs1'][0])
         ax1.set_title("Robot 1 Camera Image")
         ax1.axis('off')
         
@@ -109,8 +109,8 @@ class RolloutPlayer:
             return False
 
         if 0 <= self.current_frame < self.num_frames:
-            self.im0.set_data(self.rollout['camera0_obs'][self.current_frame])
-            self.im1.set_data(self.rollout['camera1_obs'][self.current_frame])
+            self.im0.set_data(self.rollout['camera_obs0'][self.current_frame])
+            self.im1.set_data(self.rollout['camera_obs1'][self.current_frame])
             
             # 更新标题中的帧数
             self.fig.axes[0].set_title(f"Robot 0 Camera: {os.path.basename(self.filepath)} | Frame {self.current_frame+1}/{self.num_frames}")

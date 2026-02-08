@@ -1,5 +1,6 @@
 # Generates demonstrations for the Two Arm Lift task
 
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,7 +12,6 @@ from robosuite.controllers import load_composite_controller_config
 from env import TwoArmLiftRole
 from scipy.spatial.transform import Rotation as R
 from transform_utils import SE3_log_map, SE3_exp_map
-import os
 
 class PolicyPlayer:
     def __init__ (self, env, render = False):
@@ -445,7 +445,7 @@ if __name__ == "__main__":
         os.makedirs(directory)
 
 
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller=os.path.join(os.path.dirname(__file__), "..", "kinova.json"))
 
     env = TwoArmLiftRole(
     robots=["Kinova3", "Kinova3"],

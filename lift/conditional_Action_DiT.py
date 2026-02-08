@@ -333,35 +333,6 @@ class Conditional_ODE():
             step_start = time.time()
 
             for i in range(self.n_models):
-<<<<<<< HEAD
-                idx = np.random.randint(0, N_trajs_list[i], batch_size)
-                x = x_normalized_list[i][idx].to(self.device, non_blocking=True)
-                attr = attributes_list[i][idx].to(self.device, non_blocking=True)
-                
-                sigma = self.sample_noise_distribution(x.shape[0])
-                eps = torch.randn_like(x) * sigma
-                loss_mask = torch.ones_like(x)
-                mask = (torch.rand(*attr.shape, device=self.device) > 0.2).int()
-                
-                pred = self.D(x + eps, sigma, condition=attr, mask=mask, model_index=i)
-                loss = (loss_mask * self.loss_weighting(sigma, model_index=i) * (pred - x) ** 2).mean()
-                
-                if endpoint_loss:
-                    pred_start = pred[:, 0, :self.state_size]
-                    cond_start = attr[:, :self.state_size]
-                    endpoint_loss = ((pred_start - cond_start) ** 2).mean()
-                    loss = loss + 2.0 * endpoint_loss
-                else:
-                    loss_total += loss
-            
-            self.optim.zero_grad()
-            loss_total.backward()
-            all_params = []
-            for model in self.F_list:
-                all_params += list(model.parameters())
-            grad_norm = torch.nn.utils.clip_grad_norm_(all_params, 10.0)
-            self.optim.step()
-=======
                 # sample indices using torch on the correct device
                 idx = torch.randint(0, N_trajs_list[i], (batch_size,), device='cpu')  # CPU indices are fine
                 # prefer x_normalized_list to be torch tensors already (ideally on GPU)
@@ -399,7 +370,6 @@ class Conditional_ODE():
             grad_norm = torch.nn.utils.clip_grad_norm_(self.all_params, 10.0)
             scaler.step(self.optim)
             scaler.update()
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
             self.ema_update()
 
             loss_avg += loss_total.item()
@@ -467,11 +437,7 @@ class Conditional_ODE():
         
     def load(self, extra: str = ""):
         """Loads state dictionaries for all transformers and their EMA copies."""
-<<<<<<< HEAD
-        name = "/home/icon-labtop/anthony/MIMIC-D/lift/data/models/VAE_models_ICON/trained_models/Cond_ODE_TwoArmLift_specs_256_4_3_lift_mpc_P20E1_imageonlyLATENT_rotvec_separatenorm_dual_cameraNEW2.pt"
-=======
         name = "trained_models/" + self.filename + extra + ".pt"
->>>>>>> 82fc198ec39ec68cfa95ea0cae07410c2d9f205c
         if os.path.isfile(name):
             print("Loading " + name)
             checkpoint = torch.load(name, map_location=self.device)

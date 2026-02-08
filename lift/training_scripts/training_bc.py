@@ -2,12 +2,11 @@
 # It uses the 3-dimensional rotation vector of the arm's state and action.
 # The model is conditioned on the initial grasp position of the two pot handles.
 
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from utils.discrete import *
-import sys
-import torch
 import torch.nn as nn
 import torch.optim as optim
 

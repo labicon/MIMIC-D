@@ -2,12 +2,12 @@
 # It uses the 3-dimensional rotation vector of the arm's state and action.
 # The model is conditioned on the initial grasp position of the two pot handles.
 
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import torch
 import numpy as np
-from utils.conditional_Action_DiT import Conditional_ODE
+from conditional_Action_DiT import Conditional_ODE
 import matplotlib.pyplot as plt
 from utils.discrete import *
-import sys
 import pdb
 
 def create_mpc_dataset(expert_data, planning_horizon=25):

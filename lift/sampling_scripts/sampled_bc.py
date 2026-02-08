@@ -1,8 +1,8 @@
 # This script is used to sample the Conditional ODE model for the Two Arm Lift task and execute the demo.
 # It uses the 3-dimensional rotation vector of the arm's state and action.
 
+import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import time
-import os
 import torch
 import torch.nn as nn
 import numpy as np
@@ -13,7 +13,7 @@ import copy
 import robosuite as suite
 from robosuite.controllers import load_composite_controller_config
 from env import TwoArmLiftRole
-from scipy.spatial.transform import Rotation as R\
+from scipy.spatial.transform import Rotation as R
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -394,7 +394,7 @@ class PolicyPlayer:
     
         
 if __name__ == "__main__":
-    controller_config = load_composite_controller_config(robot="Kinova3", controller="kinova.json")
+    controller_config = load_composite_controller_config(robot="Kinova3", controller=os.path.join(os.path.dirname(__file__), "..", "kinova.json"))
 
     T = 700
     H = 25
