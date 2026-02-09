@@ -9,6 +9,7 @@ import pickle as pkl
 import copy
 import robosuite as suite
 from robosuite.controllers import load_composite_controller_config
+from robosuite.utils.placement_samplers import UniformRandomSampler
 from env import TwoArmLiftRole
 from scipy.spatial.transform import Rotation as R
 from transform_utils import SE3_log_map, SE3_exp_map
@@ -346,12 +347,33 @@ class PolicyPlayer:
             return False
 
     
-    def get_demo(self, seed, mode, sleeptime=0.03):
+    def get_demo(self, seed, mode, sleeptime=0.0, action_noise=0.0, alpha_range=(0.3, 0.3),
+                 threshold_range=(0.05, 0.05), waypoint_jitter=0.0):
         """
-        Main file to get the demonstration data
+        Main file to get the demonstration data.
+
+        Args:
+            seed: Random seed for environment reset.
+            mode: Waypoint mode (1, 2, or 3).
+            sleeptime: Sleep between steps for rendering.
+            action_noise: Std of Gaussian noise added to position/rotation actions.
+                          Set > 0 (e.g. 0.02) for imperfect demonstrations.
+            alpha_range: (min, max) for randomized P-gain per waypoint.
+                         Default (0.3, 0.3) = fixed. Try (0.15, 0.45) for variation.
+            threshold_range: (min, max) for randomized arrival threshold per waypoint.
+                             Default (0.05, 0.05) = fixed. Try (0.03, 0.08) for variation.
+            waypoint_jitter: Std of Gaussian noise added to each waypoint goal_pos (meters).
+                             Set > 0 (e.g. 0.015) for imperfect trajectories.
         """
 
         obs = self.reset(seed, mode)
+
+        # Apply waypoint jitter if requested (perturb goal positions slightly)
+        if waypoint_jitter > 0:
+            for wp in self.waypoints_robot0:
+                wp["goal_pos"] = wp["goal_pos"] + np.random.normal(0, waypoint_jitter, 3)
+            for wp in self.waypoints_robot1:
+                wp["goal_pos"] = wp["goal_pos"] + np.random.normal(0, waypoint_jitter, 3)
 
         max_step_move = int(20 * self.control_freq) # 15 seconds
         max_step_grip = int(1.5 * self.control_freq)
@@ -361,6 +383,10 @@ class PolicyPlayer:
             robot0_arrived = False
             robot1_arrived = False
 
+            # Randomize alpha and threshold per waypoint for natural variation
+            alpha = np.random.uniform(*alpha_range)
+            threshold = np.random.uniform(*threshold_range)
+
             for i in range(max_step):
                 robot0_pos, robot0_rotm, robot1_pos, robot1_rotm = self.get_poses(obs)
 
@@ -368,15 +394,22 @@ class PolicyPlayer:
                     goal_pos0 = self.waypoints_robot0[wp_idx]["goal_pos"]
                     goal_rotm0 = self.waypoints_robot0[wp_idx]["goal_rotm"]
                     action0 = self.convert_action_robot(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0, 
-                                                        self.waypoints_robot0[wp_idx]["gripper"], alpha=0.3) # alpha acts like the P gain
-                    robot0_arrived = self.check_arrived(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0, threshold = 0.05)
+                                                        self.waypoints_robot0[wp_idx]["gripper"], alpha=alpha)
+                    robot0_arrived = self.check_arrived(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0, threshold=threshold)
                 if not robot1_arrived:
                     goal_pos1 = self.waypoints_robot1[wp_idx]["goal_pos"]
                     goal_rotm1 = self.waypoints_robot1[wp_idx]["goal_rotm"]
                     action1 = self.convert_action_robot(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1, 
-                                                        self.waypoints_robot1[wp_idx]["gripper"], alpha=0.3)
-                    robot1_arrived = self.check_arrived(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1, threshold = 0.05)
+                                                        self.waypoints_robot1[wp_idx]["gripper"], alpha=alpha)
+                    robot1_arrived = self.check_arrived(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1, threshold=threshold)
                 
+                # Add action noise for imperfect demonstrations
+                if action_noise > 0:
+                    action0[:3] += np.random.normal(0, action_noise, 3)        # position noise
+                    action0[3:6] += np.random.normal(0, action_noise * 0.5, 3) # rotation noise (smaller)
+                    action1[:3] += np.random.normal(0, action_noise, 3)
+                    action1[3:6] += np.random.normal(0, action_noise * 0.5, 3)
+
                 action = np.hstack([action0, action1])
                 obs, reward, done, info = self.env.step(action)
                 self.rollout["observations"].append(self.process_obs(obs))
@@ -399,6 +432,96 @@ class PolicyPlayer:
                 if robot0_arrived and robot1_arrived and self.waypoint_properties[wp_idx] == "move":
                     break
         
+        return self.rollout
+
+    def get_random_start_demo(self, seed, mode, sleeptime=0.0, joint_noise_scale=0.3,
+                              approach_action_noise=0.01):
+        """
+        Generate a demonstration where the arms start from randomized joint positions
+        and smoothly approach the pot from whatever angle they happen to be at.
+        Some light noise is also added during the approach phase for variety.
+        The entire trajectory is smooth and always completes the full task.
+
+        This creates diverse approach data: many different paths to the same
+        successful grasp, teaching the policy that there are many valid ways
+        to reach the pot.
+
+        Args:
+            seed: Random seed for environment reset.
+            mode: Waypoint mode (1, 2, or 3).
+            sleeptime: Sleep between steps for rendering.
+            joint_noise_scale: Scale of noise added to initial joint positions.
+                               Default 0.3 rad -- creates noticeably different starting poses.
+            approach_action_noise: Std of Gaussian noise added to actions during
+                                   the approach phase (waypoint 0) only. Default 0.01.
+        """
+
+        obs = self.reset(seed, mode)
+
+        for robot in self.env.robots:
+            joint_indexes = robot._ref_joint_pos_indexes
+            current_qpos = self.env.sim.data.qpos[joint_indexes].copy()
+            noise = np.random.uniform(-joint_noise_scale, joint_noise_scale, current_qpos.shape)
+            self.env.sim.data.qpos[joint_indexes] = current_qpos + noise
+
+        # Forward the simulation to propagate the new joint positions
+        self.env.sim.forward()
+
+        max_step_move = int(20 * self.control_freq)
+        max_step_grip = int(1.5 * self.control_freq)
+
+        for wp_idx in range(len(self.waypoint_properties)):
+            max_step = max_step_move if self.waypoint_properties[wp_idx] == "move" else max_step_grip
+            robot0_arrived = False
+            robot1_arrived = False
+
+            is_approach = (wp_idx == 0)
+
+            for i in range(max_step):
+                robot0_pos, robot0_rotm, robot1_pos, robot1_rotm = self.get_poses(obs)
+
+                if not robot0_arrived:
+                    goal_pos0 = self.waypoints_robot0[wp_idx]["goal_pos"]
+                    goal_rotm0 = self.waypoints_robot0[wp_idx]["goal_rotm"]
+                    action0 = self.convert_action_robot(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0,
+                                                        self.waypoints_robot0[wp_idx]["gripper"], alpha=0.3)
+                    robot0_arrived = self.check_arrived(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0, threshold=0.05)
+                if not robot1_arrived:
+                    goal_pos1 = self.waypoints_robot1[wp_idx]["goal_pos"]
+                    goal_rotm1 = self.waypoints_robot1[wp_idx]["goal_rotm"]
+                    action1 = self.convert_action_robot(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1,
+                                                        self.waypoints_robot1[wp_idx]["gripper"], alpha=0.3)
+                    robot1_arrived = self.check_arrived(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1, threshold=0.05)
+
+                if is_approach and approach_action_noise > 0:
+                    action0[:3] += np.random.normal(0, approach_action_noise, 3)
+                    action0[3:6] += np.random.normal(0, approach_action_noise * 0.5, 3)
+                    action1[:3] += np.random.normal(0, approach_action_noise, 3)
+                    action1[3:6] += np.random.normal(0, approach_action_noise * 0.5, 3)
+
+                action = np.hstack([action0, action1])
+                obs, reward, done, info = self.env.step(action)
+                self.rollout["observations"].append(self.process_obs(obs))
+                self.rollout["actions"].append(action)
+                self.rollout["pot_states1"].append(self.get_pot_state_local()[0])
+                self.rollout["pot_states2"].append(self.get_pot_state_local()[1])
+
+                if 'camera_obs0' not in self.rollout:
+                    self.rollout['camera_obs0'] = []
+                    self.rollout['camera_obs1'] = []
+                if 'robot0_eye_in_hand_image' in obs:
+                    self.rollout['camera_obs0'].append(obs['robot0_eye_in_hand_image'])
+                if 'robot1_eye_in_hand_image' in obs:
+                    self.rollout['camera_obs1'].append(obs['robot1_eye_in_hand_image'])
+
+                time.sleep(sleeptime)
+
+                if self.render:
+                    self.env.render()
+
+                if robot0_arrived and robot1_arrived and self.waypoint_properties[wp_idx] == "move":
+                    break
+
         return self.rollout
 
 
@@ -428,7 +551,8 @@ if __name__ == "__main__":
     robots=["Kinova3", "Kinova3"],
     gripper_types="default",
     controller_configs=controller_config,
-    has_renderer=False,
+    horizon=10000,
+    has_renderer=True,
     render_camera=None,
     has_offscreen_renderer=True,
     use_camera_obs=True,
@@ -437,18 +561,31 @@ if __name__ == "__main__":
     camera_widths=128
     )
 
-    player = PolicyPlayer(env, render = False)
-    # rollout = player.get_demo(seed = 100, mode = 2)
-    # print("length of episode:", len(rollout["observations"]))
-    # rollout = player.get_demo(seed = 100, mode = 3)
-    # print("length of episode:", len(rollout["observations"]))
-    for i in range(0, 2):   
-        print("Here" + str(i))
-        rollout = player.get_demo(seed = i*10, mode = 2)
+    player = PolicyPlayer(env, render = True)
+
+    rollout_dir = os.path.join(os.path.dirname(__file__), "..", "rollouts", "robust")
+    os.makedirs(rollout_dir, exist_ok=True)
+
+    n_seeds = 100
+
+    def save_rollout(rollout, player, directory, name):
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        with open(os.path.join(os.path.dirname(__file__), "..", "rollouts/newslower/rollout_seed%s_mode2.pkl" % (i*10)), "wb") as f:
+        filepath = os.path.join(directory, name)
+        with open(filepath, "wb") as f:
             pkl.dump(rollout, f)
-        rollout = player.get_demo(seed = i*10, mode = 3)
-        rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        with open(os.path.join(os.path.dirname(__file__), "..", "rollouts/newslower/rollout_seed%s_mode3.pkl" % (i*10)), "wb") as f:
-            pkl.dump(rollout, f)
+
+    for i in range(0, n_seeds):
+        for mode in [2, 3]:
+            rollout = player.get_demo(seed=i*10, mode=mode)
+            save_rollout(rollout, player, rollout_dir,
+                         f"rollout_nowclean_seed{i*10}_mode{mode}.pkl")
+
+    for i in range(0, 50):
+        for mode in [2, 3]:
+            rollout = player.get_demo(seed=i*10, mode=mode, action_noise=0.004,)
+            save_rollout(rollout, player, rollout_dir, f"rollout_noisy_seed{i*10}_mode{mode}.pkl")
+
+    for i in range(0, 50):
+        for mode in [2, 3]:
+            rollout = player.get_random_start_demo(seed=i*10, mode=mode, joint_noise_scale=0.025)
+            save_rollout(rollout, player, rollout_dir, f"rollout_randstart_seed{i*10}_mode{mode}.pkl")

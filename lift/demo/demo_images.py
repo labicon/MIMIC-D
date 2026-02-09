@@ -439,11 +439,6 @@ class PolicyPlayer:
     
         
 if __name__ == "__main__":
-    
-    directory = f"rollouts/newslower"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
 
     controller_config = load_composite_controller_config(robot="Kinova3", controller=os.path.join(os.path.dirname(__file__), "..", "kinova.json"))
 
@@ -451,6 +446,7 @@ if __name__ == "__main__":
     robots=["Kinova3", "Kinova3"],
     gripper_types="default",
     controller_configs=controller_config,
+    horizon=10000,
     has_renderer=True,
     render_camera=None,
     has_offscreen_renderer=True,
@@ -462,23 +458,60 @@ if __name__ == "__main__":
     )
 
     player = PolicyPlayer(env, render = False)
-    # rollout = player.get_demo(seed = 100, mode = 2)
-    # print("length of episode:", len(rollout["observations"]))
-    # rollout = player.get_demo(seed = 100, mode = 3)
-    # print("length of episode:", len(rollout["observations"]))
 
-    for i in range(50):   
-        print(f"seed{i*10} mode 2 and 3")
-        rollout = player.get_demo(seed = i*10, mode = 2)
+    # ========================================================================
+    # Data generation with 3 types of demonstrations:
+    #   1) Clean expert demos (original, but with wider pot randomization)
+    #   2) Noisy/jittered demos (imperfect actions, varied P-gain, waypoint jitter)
+    #   3) Recovery demos (perturbation injected, expert recovers)
+    # ========================================================================
+
+    rollout_dir = os.path.join(os.path.dirname(__file__), "..", "rollouts", "robust")
+    os.makedirs(rollout_dir, exist_ok=True)
+
+    n_seeds = 50  # Number of seeds (each produces mode 2 + mode 3 = 2 demos)
+
+    def save_rollout(rollout, player, directory, name):
         rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        # Use os.path.join() to construct the file path
-        filepath_mode2 = os.path.join(directory, f"rollout_seed{i*10}_mode2.pkl")
-        with open(filepath_mode2, "wb") as f:
+        filepath = os.path.join(directory, name)
+        with open(filepath, "wb") as f:
             pkl.dump(rollout, f)
 
-        rollout = player.get_demo(seed = i*10, mode = 3)
-        rollout['pot_start'] = [player.pot_handle0_pos, player.pot_handle1_pos]
-        # Use os.path.join() for the second file as well
-        filepath_mode3 = os.path.join(directory, f"rollout_seed{i*10}_mode3.pkl")
-        with open(filepath_mode3, "wb") as f:
-            pkl.dump(rollout, f)
+    # --- 1) Clean expert demonstrations ---
+    print("=== Generating clean expert demonstrations ===")
+    for i in range(n_seeds):
+        for mode in [2, 3]:
+            print(f"  [Clean] seed={i*10}, mode={mode}")
+            rollout = player.get_demo(seed=i*10, mode=mode)
+            save_rollout(rollout, player, rollout_dir,
+                         f"rollout_clean_seed{i*10}_mode{mode}.pkl")
+
+    # --- 2) Noisy/jittered demonstrations ---
+    print("=== Generating noisy/jittered demonstrations ===")
+    for i in range(n_seeds):
+        for mode in [2, 3]:
+            print(f"  [Noisy] seed={i*10}, mode={mode}")
+            rollout = player.get_demo(
+                seed=i*10, mode=mode,
+                action_noise=0.02,
+                alpha_range=(0.15, 0.45),
+                threshold_range=(0.03, 0.08),
+                waypoint_jitter=0.015,
+            )
+            save_rollout(rollout, player, rollout_dir,
+                         f"rollout_noisy_seed{i*10}_mode{mode}.pkl")
+
+    # --- 3) Recovery demonstrations ---
+    print("=== Generating recovery demonstrations ===")
+    for i in range(n_seeds):
+        for mode in [2, 3]:
+            print(f"  [Recovery] seed={i*10}, mode={mode}")
+            rollout = player.get_recovery_demo(
+                seed=i*10, mode=mode,
+                n_perturbation_steps=15,
+                perturbation_magnitude=0.25,
+            )
+            save_rollout(rollout, player, rollout_dir,
+                         f"rollout_recovery_seed{i*10}_mode{mode}.pkl")
+
+    print(f"\nDone! Generated {n_seeds * 2 * 3} total demonstrations in {rollout_dir}")

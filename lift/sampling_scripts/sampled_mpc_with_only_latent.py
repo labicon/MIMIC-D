@@ -2,6 +2,10 @@
 # It uses the 3-dimensional rotation vector of the arm's state and action.
 
 import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
+# Ensure trained_models/ is found relative to training_scripts/
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "training_scripts"))
+
 import time
 import torch
 import numpy as np
@@ -24,7 +28,7 @@ class TwoArmLift():
         self.action_size = action_size
         self.name = "TwoArmLift"
 
-def create_mpc_dataset(expert_data, planning_horizon=15):
+def create_mpc_dataset(expert_data, planning_horizon=5):
     n_traj, horizon, state_dim = expert_data.shape
     n_subtraj = horizon  # we'll create one sub-trajectory starting at each time step
 
@@ -107,7 +111,7 @@ class PolicyPlayer:
 
     def load_model(self, expert_data1, expert_data2, obs_init1, obs_init2, obs, image_latents_initial_arm1, image_latents_initial_arm2, state_dim = 7, action_dim = 7):
         model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-        H = 15 # horizon, length of each trajectory
+        H = 5 # horizon, length of each trajectory
         T = 700 # total time steps
 
         print("LOADER INIT!")
@@ -136,7 +140,7 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-        action_cond_ode.load(extra="_lift_mpc_P25E1_imageonly_rotvec_separatenorm_dual_camera")
+        action_cond_ode.load(extra="_lift_mpc_H5_imageonlyLATENT_robust_separatenorm_dual_cameraSECOND")
         return action_cond_ode
 
     
@@ -223,7 +227,7 @@ class PolicyPlayer:
                     attr=cond_tensor,
                     traj_len=segment_length,
                     n_samples=1,
-                    w=1.,
+                    w=1.5,
                     model_index=i
                 )
                 seg_i = sampled[0].cpu().detach().numpy()  # (segment_length, 7)
@@ -273,13 +277,14 @@ class PolicyPlayer:
         obs = self.reset(seed)
 
         # Loading
-        expert_data = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/expert_actions_newslower_20.npy")
+        data_dir = os.path.join(os.path.dirname(__file__), "..", "parsing_scripts", "data", "models", "VAE_models_ICON", "TrainingDataDiffusion")
+        expert_data = np.load(os.path.join(data_dir, "expert_actions_robust.npy"))
         expert_data1 = expert_data[:, :, :7]
         expert_data2 = expert_data[:, :, 7:14]
 
         # Load original image sequences BEFORE creating MPC dataset
-        expert_images_latents_arm1_orig = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm1_images_latents.npy")
-        expert_images_latents_arm2_orig = np.load("data/models/VAE_models_ICON/TrainingDataDiffusion/arm2_images_latents.npy")
+        expert_images_latents_arm1_orig = np.load(os.path.join(data_dir, "arm1_images_latents_robust.npy"))
+        expert_images_latents_arm2_orig = np.load(os.path.join(data_dir, "arm2_images_latents_robust.npy"))
 
         # Create MPC datasets for actions (needed for training/normalization)
         expert_data1 = create_mpc_dataset(expert_data1, planning_horizon=H)
@@ -308,7 +313,7 @@ class PolicyPlayer:
         image_latents_initial_arm1 = expert_images_latents_arm1[:, 0, :]
         image_latents_initial_arm2 = expert_images_latents_arm2[:, 0, :]
 
-        with open("data/models/VAE_models_ICON/TrainingDataDiffusion/pot_start_newslower_20.npy", "rb") as f:
+        with open(os.path.join(data_dir, "pot_start_robust.npy"), "rb") as f:
             obs = np.load(f)
 
         print("Im here")
@@ -328,7 +333,7 @@ class PolicyPlayer:
         image_seq_arm1 = expert_images_latents_arm1_orig[traj_idx]  # (T, latent_dim)
         image_seq_arm2 = expert_images_latents_arm2_orig[traj_idx]  # (T, latent_dim)
 
-        planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], image_seq_arm1, image_seq_arm2, segment_length=H, total_steps=T*2, n_implement=10)
+        planned_trajs = self.reactive_mpc_plan(model, [obs_init1[cond_idx], obs_init2[cond_idx]], obs[cond_idx], image_seq_arm1, image_seq_arm2, segment_length=H, total_steps=T*2, n_implement=4)
         planned_traj1 =  planned_trajs[0] * self.std_arm1 + self.mean_arm1
         # np.save("sampled_trajs/mpc_P34E5/mpc_traj1_%s.npy" % i, planned_traj1)
         planned_traj2 = planned_trajs[1] * self.std_arm2 + self.mean_arm2
@@ -340,7 +345,7 @@ if __name__ == "__main__":
     controller_config = load_composite_controller_config(robot="Kinova3", controller=os.path.join(os.path.dirname(__file__), "..", "kinova.json"))
 
     T = 700
-    H = 15
+    H = 5
 
     env = TwoArmLiftRole(
     robots=["Kinova3", "Kinova3"],
@@ -355,4 +360,4 @@ if __name__ == "__main__":
 
     player = PolicyPlayer(env, render = False)
     cond_idx = 0
-    player.get_demo(seed = 150, cond_idx = cond_idx, H=H, T=T)
+    player.get_demo(seed = 100, cond_idx = cond_idx, H=H, T=T)

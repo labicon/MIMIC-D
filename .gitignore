@@ -4,3 +4,5 @@ lift/trained_models/
 lift_hardware/trained_models/
 three_agent_road/trained_models/
 lift/rollouts
+lift/parsing_scripts/data/
+lift/training_scripts/trained_models/

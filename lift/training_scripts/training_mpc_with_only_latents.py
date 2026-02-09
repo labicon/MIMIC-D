@@ -2,6 +2,11 @@
 # conditioning ONLY on initial arm positions and image latents (no pot position, no cross-arm info).
 
 import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
+# Ensure saves are relative to this script's directory, not cwd
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.makedirs("trained_models", exist_ok=True)
+
 import torch
 import numpy as np
 from conditional_Action_DiT import Conditional_ODE
@@ -36,21 +41,22 @@ print(device)
 
 
 # Parameters
-n_gradient_steps = 2000
+n_gradient_steps = 7500
 batch_size = 32
 model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-H = 15 # horizon, length of each trajectory
+H = 5 # horizon, length of each trajectory
 T = 700 # total time steps
 
 # Load expert data
-expert_data = np.load("TrainingDataDiffusion/expert_actions_newslower_20.npy")
+data_dir = os.path.join(os.path.dirname(__file__), "..", "parsing_scripts", "data", "models", "VAE_models_ICON", "TrainingDataDiffusion")
+expert_data = np.load(os.path.join(data_dir, "expert_actions_robust.npy"))
 expert_data1 = expert_data[:, :, :7]
 expert_data2 = expert_data[:, :, 7:14]
 
 # Load and process image data for each arm
 # Assuming the image latents are 128-dimensional for each arm
-expert_images_latents_arm1 = np.load("TrainingDataDiffusion/arm1_images_latents.npy")
-expert_images_latents_arm2 = np.load("TrainingDataDiffusion/arm2_images_latents.npy")
+expert_images_latents_arm1 = np.load(os.path.join(data_dir, "arm1_images_latents_robust.npy"))
+expert_images_latents_arm2 = np.load(os.path.join(data_dir, "arm2_images_latents_robust.npy"))
 print(f"Loaded arm 1 image latents with shape: {expert_images_latents_arm1.shape}")
 print(f"Loaded arm 2 image latents with shape: {expert_images_latents_arm2.shape}")
 
@@ -109,7 +115,7 @@ attr_dim1 = attr1.shape[1]
 attr_dim2 = attr2.shape[1]
 
 # Training
-end="_lift_mpc_P20E1_imageonlyLATENT_rotvec_separatenorm_dual_camera"
+end="_lift_mpc_H5_imageonlyLATENT_robust_separatenorm_dual_cameraSECOND"
 action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
 action_cond_ode.train([actions1, actions2], [attr1, attr2], int(5*n_gradient_steps), batch_size, extra=end, endpoint_loss=False)
 action_cond_ode.save(extra=end)

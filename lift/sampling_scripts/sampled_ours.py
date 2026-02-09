@@ -134,7 +134,6 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-        # action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf_sitedata_newslower_rotvec_separatenorm_alternatemode_100_150H")
         action_cond_ode.load(extra="_lift_mpc_P25E1_crosscond_nofinalpos_fullstate_nolf_sitedata_newslower_rotvec_separatenorm_100traj")
 
         return action_cond_ode
@@ -228,7 +227,7 @@ class PolicyPlayer:
                     attr=cond_tensor,
                     traj_len=segment_length,
                     n_samples=1,
-                    w=1.,
+                    w=1.5,
                     model_index=i
                 )
                 seg_i = sampled[0].cpu().detach().numpy()  # (segment_length, 7)
@@ -304,7 +303,7 @@ class PolicyPlayer:
 
         model = self.load_model(expert_data1, expert_data2, obs_init1, obs_init2, obs, state_dim = 7, action_dim = 7)
 
-        planned_trajs = self.reactive_mpc_plan(model, obs, segment_length=H, total_steps=T*2, n_implement=10)
+        planned_trajs = self.reactive_mpc_plan(model, obs, segment_length=H, total_steps=T*2, n_implement=4)
         planned_traj1 =  planned_trajs[0] * self.std_arm1 + self.mean_arm1
         # np.save("sampled_trajs/mpc_P34E5/mpc_traj1_%s.npy" % i, planned_traj1)
         planned_traj2 = planned_trajs[1] * self.std_arm2 + self.mean_arm2
