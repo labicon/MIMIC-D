@@ -140,7 +140,7 @@ class PolicyPlayer:
 
         # Load the model
         action_cond_ode = Conditional_ODE(env, [attr_dim1, attr_dim2], [sigma_data1, sigma_data2], device=device, N=100, n_models = 2, **model_size)
-        action_cond_ode.load(extra="_lift_mpc_H5_imageonlyLATENT_robust_separatenorm_dual_cameraSECOND")
+        action_cond_ode.load(extra="_lift_mpc_H5_imageonlyLATENT_robust_separatenorm_dual_cameraFOURTH")
         return action_cond_ode
 
     

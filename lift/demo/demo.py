@@ -348,7 +348,7 @@ class PolicyPlayer:
 
     
     def get_demo(self, seed, mode, sleeptime=0.0, action_noise=0.0, alpha_range=(0.3, 0.3),
-                 threshold_range=(0.05, 0.05), waypoint_jitter=0.0):
+                 threshold_range=(0.05, 0.05), waypoint_jitter=0.0, preturbed_camera=(0.0, 0.0)):
         """
         Main file to get the demonstration data.
 
@@ -367,6 +367,13 @@ class PolicyPlayer:
         """
 
         obs = self.reset(seed, mode)
+
+        for robot in self.env.robots:
+            joint_indexes = robot._ref_joint_pos_indexes
+            if len(joint_indexes) >= 7:
+                self.env.sim.data.qpos[joint_indexes[6]] += np.random.uniform(*preturbed_camera)
+                self.env.sim.data.qpos[joint_indexes[5]] += np.random.uniform(*preturbed_camera)
+
 
         # Apply waypoint jitter if requested (perturb goal positions slightly)
         if waypoint_jitter > 0:
@@ -434,37 +441,20 @@ class PolicyPlayer:
         
         return self.rollout
 
-    def get_random_start_demo(self, seed, mode, sleeptime=0.0, joint_noise_scale=0.3,
-                              approach_action_noise=0.01):
+    def get_random_start_demo(self, seed, mode, sleeptime=0.0, action_noise=0.0, alpha_range=(0.3, 0.3),
+                              threshold_range=(0.05, 0.05), waypoint_jitter=0.0):
         """
-        Generate a demonstration where the arms start from randomized joint positions
-        and smoothly approach the pot from whatever angle they happen to be at.
-        Some light noise is also added during the approach phase for variety.
-        The entire trajectory is smooth and always completes the full task.
-
-        This creates diverse approach data: many different paths to the same
-        successful grasp, teaching the policy that there are many valid ways
-        to reach the pot.
-
-        Args:
-            seed: Random seed for environment reset.
-            mode: Waypoint mode (1, 2, or 3).
-            sleeptime: Sleep between steps for rendering.
-            joint_noise_scale: Scale of noise added to initial joint positions.
-                               Default 0.3 rad -- creates noticeably different starting poses.
-            approach_action_noise: Std of Gaussian noise added to actions during
-                                   the approach phase (waypoint 0) only. Default 0.01.
+        Same as get_demo, but right after reset we randomize only the 5th and 7th
+        joint (0-based indices 4 and 6) of each arm to uniform [-2*pi, 2*pi], then
+        run the same waypoint rollout as get_demo.
         """
-
         obs = self.reset(seed, mode)
 
         for robot in self.env.robots:
             joint_indexes = robot._ref_joint_pos_indexes
-            current_qpos = self.env.sim.data.qpos[joint_indexes].copy()
-            noise = np.random.uniform(-joint_noise_scale, joint_noise_scale, current_qpos.shape)
-            self.env.sim.data.qpos[joint_indexes] = current_qpos + noise
-
-        # Forward the simulation to propagate the new joint positions
+            if len(joint_indexes) >= 7:
+                #self.env.sim.data.qpos[joint_indexes[5]] = np.random.uniform(- np.pi / 2, np.pi / 2)
+                self.env.sim.data.qpos[joint_indexes[6]] = np.random.uniform(- np.pi / 2, np.pi / 2)
         self.env.sim.forward()
 
         max_step_move = int(20 * self.control_freq)
@@ -475,7 +465,8 @@ class PolicyPlayer:
             robot0_arrived = False
             robot1_arrived = False
 
-            is_approach = (wp_idx == 0)
+            alpha = np.random.uniform(*alpha_range)
+            threshold = np.random.uniform(*threshold_range)
 
             for i in range(max_step):
                 robot0_pos, robot0_rotm, robot1_pos, robot1_rotm = self.get_poses(obs)
@@ -484,20 +475,20 @@ class PolicyPlayer:
                     goal_pos0 = self.waypoints_robot0[wp_idx]["goal_pos"]
                     goal_rotm0 = self.waypoints_robot0[wp_idx]["goal_rotm"]
                     action0 = self.convert_action_robot(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0,
-                                                        self.waypoints_robot0[wp_idx]["gripper"], alpha=0.3)
-                    robot0_arrived = self.check_arrived(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0, threshold=0.05)
+                                                        self.waypoints_robot0[wp_idx]["gripper"], alpha=alpha)
+                    robot0_arrived = self.check_arrived(robot0_pos, robot0_rotm, goal_pos0, goal_rotm0, threshold=threshold)
                 if not robot1_arrived:
                     goal_pos1 = self.waypoints_robot1[wp_idx]["goal_pos"]
                     goal_rotm1 = self.waypoints_robot1[wp_idx]["goal_rotm"]
                     action1 = self.convert_action_robot(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1,
-                                                        self.waypoints_robot1[wp_idx]["gripper"], alpha=0.3)
-                    robot1_arrived = self.check_arrived(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1, threshold=0.05)
+                                                        self.waypoints_robot1[wp_idx]["gripper"], alpha=alpha)
+                    robot1_arrived = self.check_arrived(robot1_pos, robot1_rotm, goal_pos1, goal_rotm1, threshold=threshold)
 
-                if is_approach and approach_action_noise > 0:
-                    action0[:3] += np.random.normal(0, approach_action_noise, 3)
-                    action0[3:6] += np.random.normal(0, approach_action_noise * 0.5, 3)
-                    action1[:3] += np.random.normal(0, approach_action_noise, 3)
-                    action1[3:6] += np.random.normal(0, approach_action_noise * 0.5, 3)
+                if action_noise > 0:
+                    action0[:3] += np.random.normal(0, action_noise, 3)
+                    action0[3:6] += np.random.normal(0, action_noise * 0.5, 3)
+                    action1[:3] += np.random.normal(0, action_noise, 3)
+                    action1[3:6] += np.random.normal(0, action_noise * 0.5, 3)
 
                 action = np.hstack([action0, action1])
                 obs, reward, done, info = self.env.step(action)
@@ -509,10 +500,8 @@ class PolicyPlayer:
                 if 'camera_obs0' not in self.rollout:
                     self.rollout['camera_obs0'] = []
                     self.rollout['camera_obs1'] = []
-                if 'robot0_eye_in_hand_image' in obs:
-                    self.rollout['camera_obs0'].append(obs['robot0_eye_in_hand_image'])
-                if 'robot1_eye_in_hand_image' in obs:
-                    self.rollout['camera_obs1'].append(obs['robot1_eye_in_hand_image'])
+                self.rollout['camera_obs0'].append(obs['robot0_eye_in_hand_image'])
+                self.rollout['camera_obs1'].append(obs['robot1_eye_in_hand_image'])
 
                 time.sleep(sleeptime)
 
@@ -574,18 +563,18 @@ if __name__ == "__main__":
         with open(filepath, "wb") as f:
             pkl.dump(rollout, f)
 
-    for i in range(0, n_seeds):
-        for mode in [2, 3]:
-            rollout = player.get_demo(seed=i*10, mode=mode)
-            save_rollout(rollout, player, rollout_dir,
-                         f"rollout_nowclean_seed{i*10}_mode{mode}.pkl")
+    # for i in range(100, 200):
+    #     for mode in [2, 3]:
+    #         rollout = player.get_demo(seed=i*10, mode=mode)
+    #         save_rollout(rollout, player, rollout_dir,
+    #                      f"rollout_nowclean_seed{i*10}_mode{mode}.pkl")
 
-    for i in range(0, 50):
-        for mode in [2, 3]:
-            rollout = player.get_demo(seed=i*10, mode=mode, action_noise=0.004,)
-            save_rollout(rollout, player, rollout_dir, f"rollout_noisy_seed{i*10}_mode{mode}.pkl")
+    # for i in range(0, 50):
+    #     for mode in [2, 3]:
+    #         rollout = player.get_demo(seed=i*10, mode=mode, action_noise=0.003,)
+    #         save_rollout(rollout, player, rollout_dir, f"rollout_noisy_seed{i*10}_mode{mode}.pkl")
 
-    for i in range(0, 50):
+    for i in range(15, 100):
         for mode in [2, 3]:
-            rollout = player.get_random_start_demo(seed=i*10, mode=mode, joint_noise_scale=0.025)
+            rollout = player.get_demo(seed=i*10, mode=mode, preturbed_camera=(-0.25, 0.25))
             save_rollout(rollout, player, rollout_dir, f"rollout_randstart_seed{i*10}_mode{mode}.pkl")

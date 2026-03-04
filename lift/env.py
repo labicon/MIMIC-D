@@ -348,8 +348,8 @@ class TwoArmLiftRole(TwoArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.pot,
-                x_range=[-0.12, 0.12], # quick comment, this is for the pot initialization, initially it was at -0.05 to 0.05, but want to experiment with more randomization to train a stronger model.
-                y_range=[-0.12, 0.12],
+                x_range=[-0.05, 0.05], # quick comment, this is for the pot initialization, initially it was at -0.05 to 0.05, but want to experiment with more randomization to train a stronger model.
+                y_range=[-0.05, 0.05],
                 ensure_object_boundary_in_range=False,
                 ensure_valid_placement=True,
                 reference_pos=self.table_offset + np.array([0.3, 0., 0.]),
