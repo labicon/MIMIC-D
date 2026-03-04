@@ -241,7 +241,6 @@ class PolicyPlayer:
                     next_norm     = seg_i[n_implement, :]
 
                 segments.append(step_block)
-                current_states[i] = next_norm
 
             # 2) execute those n_implement actions on the real robot
             for t in range(n_implement):
@@ -253,12 +252,17 @@ class PolicyPlayer:
                 if self.render:
                     self.env.render()
 
-                # 3) (optional) re‐condition on true state instead of predicted:
-                state1, state2 = self.obs_to_state(obs_env)
-                current_states = [
-                    (state1 - self.mean_arm1)/self.std_arm1,
-                    (state2 - self.mean_arm2)/self.std_arm2,
-                ]
+            # Re-condition on true robot state after execution
+            state1, state2 = self.obs_to_state(obs_env)
+            current_states = [
+                (state1 - self.mean_arm1)/self.std_arm1,
+                (state2 - self.mean_arm2)/self.std_arm2,
+            ]
+
+            # Re-condition on true pot position after execution (LIVE CONDITIONING)
+            pot_handle0_pos = self.robot0_base_ori_rotm.T @ (self.env._handle0_xpos - self.robot0_base_pos) + self.pot_handle_offset
+            pot_handle1_pos = self.robot1_base_ori_rotm.T @ (self.env._handle1_xpos - self.robot1_base_pos) + self.pot_handle_offset
+            pot = np.hstack([pot_handle0_pos, pot_handle1_pos])
 
             full_traj.append(np.stack([s for s in segments], axis=0))
 
