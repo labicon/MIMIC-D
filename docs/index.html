@@ -188,8 +188,8 @@
 				<h2 class="title is-3">Overview</h2>
 				<div class="content has-text-justified">
 					<ul>
-						<li><strong>MIMIC-D</strong> is a Centralized Training Decentralized Execution (CTDE) framework for multi-agent coordination using only <strong>local observations</strong> that effectively captures multi-modality in the expert data.</li>
-						<li> During the centralized training, agents <strong>learns to coordinate</strong> with each other via access to centralized loss function. The agents preserve coordination during receding horizon decentralized execution. </li>
+						<li><strong>MIMIC-D</strong> is a joint training, decentralized execution framework for multi-agent coordination using only <strong>local observations</strong> that effectively captures multi-modality in the expert data.</li>
+						<li> During the joint training, agents <strong>learn to coordinate</strong> with each other via a shared loss function and local observations. The agents preserve coordination during receding horizon decentralized execution. </li>
 						<li> We demonstrate the effectiveness of MIMIC-D in multiple simulated domains and on a complicated bimanual hardware setup, showing significant improvements over baselines in recovering expert trajectory distributions while reducing collisions and task failures </li>
 					</ul>
 					<div class="has-text-centered" style="margin-top: 1.5rem;">
@@ -264,12 +264,12 @@
 			<div class="column is-full">
 				<h2 class="title is-3">Our Approach</h2>
 				<div class="content has-text-justified">
-					We employ a CTDE paradigm for learning multi-modal multi-agent coordination policies using diffusion models. 
+					We employ a joint training, decentralized execution paradigm for learning multi-modal multi-agent coordination policies using diffusion models. 
 					<ul>
 						<li>For our MIMIC-D method, we model decentralized policies $\pi^i$ as a conditional diffusion model with denoiser network $D_{\theta^i}(\xi^i;\sigma, o^i)$.</li>
 						<li>For each agent, $D_{\theta^i}$ takes three inputs, the noisy action trajectory $\xi^i_k$, current noise level $\sigma_k$, and observation $o^i$,
 							and with iterative denoising produces a sampled action trajectory ${\xi}^i_K$.</li>
-						<li>Centralized Training: we jointly train the policies for all the agents in the system. During the training, the agents' denoising policies share a single loss and have access to all local observations. This is necessary to promote coordination and collision-avoidant behaviors. The joint loss function: $$ \mathcal{L}_{\text{total}}(\theta) = \sum_{i=1}^N \mathcal{L}^i_{\text{diff}}(\theta^i) $$
+						<li>Joint Training: we jointly train the policies for all the agents in the system. During the training, the agents' denoising policies share a single loss and have access to all local observations. This is necessary to promote coordination and collision-avoidant behaviors. The joint loss function: $$ \mathcal{L}_{\text{total}}(\theta) = \sum_{i=1}^N \mathcal{L}^i_{\text{diff}}(\theta^i) $$
 						</li>
 						<li>Decentralized Execution: At every timestep, each agent $i$ individually acquires their local observation $o^i$ from the environment. Then, the agents sample their own policy $\pi^i_{\theta^i}$ for ${\xi}^i$, which has horizon $T$. Only the first $h$ ($h < T$) steps of each agent's actions are executed.
 						</li>
